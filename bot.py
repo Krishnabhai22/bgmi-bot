@@ -4,7 +4,6 @@ import os
 from flask import Flask
 from threading import Thread
 
-# Web Server banana Render ko khush rakhne ke liye
 app = Flask('')
 
 @app.route('/')
@@ -56,5 +55,5 @@ def callback_hacks(call):
 if __name__ == "__main__":
     keep_alive()
     print("🚀 Aapka BGMI Bot successfully chalu ho gaya hai...")
-    bot.infinity_polling(non_stop=True, timeout=60)
+    bot.infinity_polling(timeout=60)
     
