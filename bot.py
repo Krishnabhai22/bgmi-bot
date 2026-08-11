@@ -16,7 +16,7 @@ TOKEN = os.environ.get("BOT_TOKEN")
 
 # IMPORTANT:
 # Replace this with your actual private Telegram channel/resource link.
-CHANNEL_LINK = "https://t.me/qriishna_private"
+CHANNEL_LINK = "https://t.me/+GHjJmfql0o02YWZl"
 
 BOT_NAME = "QRIISHNA"
 BOT_VERSION = "2.0"
