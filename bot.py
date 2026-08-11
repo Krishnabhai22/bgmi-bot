@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 
 import telebot
 from telebot import types
-from flask import Flask, request, jsonify
+from flask import Flask
 
 
 # ============================================================
@@ -19,7 +19,7 @@ from flask import Flask, request, jsonify
 TOKEN = os.environ.get("BOT_TOKEN")
 
 BOT_NAME = "QRISHNA VIP"
-BOT_VERSION = "5.0 AUTOMATED PRO"
+BOT_VERSION = "6.0 SECURE PRO"
 
 CHANNEL_LINK = "https://t.me/+GHjJmfql0o02YWZl"
 ADMIN_CONTACT = "https://t.me/qrishna"
@@ -90,25 +90,12 @@ def send_auto_delete_message(chat_id, text, reply_markup=None, delay=45):
 
 
 # ============================================================
-# FLASK KEEP-ALIVE & AUTOMATIC PAYMENT WEBHOOK GATEWAY
+# FLASK KEEP-ALIVE SERVER
 # ============================================================
 
 @app.route("/")
 def home():
-    return "QRISHNA VIP AUTOMATED ENGINE • ONLINE"
-
-
-@app.route("/upi_webhook", methods=["POST"])
-def upi_webhook():
-    data = request.json or {}
-    utr = data.get("utr") or data.get("txn_id")
-    amount = data.get("amount")
-    status = data.get("status")
-
-    if status == "SUCCESS" and utr:
-        process_automatic_verification(utr, amount)
-        return jsonify({"status": "verified"}), 200
-    return jsonify({"status": "ignored"}), 400
+    return "QRISHNA VIP AUTOMATED SECURE ENGINE • ONLINE"
 
 
 def run_flask():
@@ -186,6 +173,7 @@ def init_database():
             CREATE TABLE IF NOT EXISTS transactions (
                 utr TEXT PRIMARY KEY,
                 user_id INTEGER,
+                pack_name TEXT,
                 amount TEXT,
                 status TEXT,
                 submitted_at TEXT
@@ -259,14 +247,12 @@ def redeem_vip_key(user_id, key_code):
             connection.close()
             return False, "This Key has already been redeemed!"
 
-        # Mark Key as Used
         cursor.execute("""
             UPDATE vip_keys
             SET is_used = 1, used_by = ?, used_at = ?
             WHERE key_code = ?
         """, (user_id, now_str, key_code))
 
-        # Check existing subscription
         cursor.execute("SELECT expiry_date FROM user_subscriptions WHERE user_id = ?", (user_id,))
         sub_row = cursor.fetchone()
 
@@ -306,46 +292,6 @@ def get_user_subscription(user_id):
         return None
 
     return {"expiry": row[0], "key": row[1]}
-
-
-# ============================================================
-# AUTOMATIC PAYMENT VERIFICATION UTILITY
-# ============================================================
-
-user_utr_states = {}
-
-def process_automatic_verification(utr, amount):
-    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with db_lock:
-        connection = get_connection()
-        cursor = connection.cursor()
-        cursor.execute("SELECT user_id FROM transactions WHERE utr = ? AND status = 'PENDING'", (utr,))
-        row = cursor.fetchone()
-
-        if row:
-            user_id = row[0]
-            days = 90
-            auto_key = f"QRISHNA-VIP-AUTO-" + str(uuid.uuid4()).upper()[:8]
-            
-            cursor.execute("INSERT INTO vip_keys (key_code, duration_days, created_at) VALUES (?, ?, ?)", (auto_key, days, now_str))
-            cursor.execute("UPDATE transactions SET status = 'VERIFIED' WHERE utr = ?", (utr,))
-            connection.commit()
-            connection.close()
-
-            redeem_vip_key(user_id, auto_key)
-            
-            try:
-                msg = (
-                    "<b>✅ PAYMENT VERIFIED AUTOMATICALLY</b>\n"
-                    "────────────────────────\n"
-                    f"Transaction UTR: <code>{utr}</code>\n"
-                    f"Generated Key: <code>{auto_key}</code>\n\n"
-                    "Your 90 Days VIP Subscription is now <b>ACTIVE</b>!\n"
-                    "Use /access to check license details."
-                )
-                bot.send_message(user_id, msg, parse_mode="HTML")
-            except Exception:
-                pass
 
 
 # ============================================================
@@ -567,8 +513,8 @@ def get_updates_text():
         "● <b>Latency:</b> 24ms (Optimal)\n\n"
         "<b>Patch Notes:</b>\n"
         "├ Optimized for latest BGMI Engine update\n"
-        "├ Integrated Auto-Key Generation Engine\n"
-        "└ Added Automated UPI Verification Layer"
+        "├ Integrated Admin Approval Verification Layer\n"
+        "└ Direct DM Private Key Delivery Active"
     )
 
 
@@ -675,10 +621,10 @@ def details_menu(pack_code):
     return markup
 
 
-def payment_invoice_menu():
+def payment_invoice_menu(pack_code):
     markup = types.InlineKeyboardMarkup(row_width=1)
     markup.add(
-        types.InlineKeyboardButton("⚡ SUBMIT UTR / TRANSACTION ID", callback_data="btn_submit_utr"),
+        types.InlineKeyboardButton("⚡ SUBMIT UTR / TRANSACTION ID", callback_data=f"sub_utr_{pack_code}"),
         types.InlineKeyboardButton("◇ SEND SCREENSHOT TO ADMIN", url=ADMIN_CONTACT),
         types.InlineKeyboardButton("‹ BACK TO PACKAGES", callback_data="trigger_buy"),
         types.InlineKeyboardButton("‹ DASHBOARD", callback_data="home")
@@ -746,6 +692,69 @@ def support_menu():
 
 def back_menu():
     markup = types.InlineKeyboardMarkup()
+    markup.add(types.InlineKeyboardButton("‹ DASHBOARD", callback_data="home"))
+    return markup
+
+
+# ============================================================
+# INSTALLATION GUIDE ENGINE
+# ============================================================
+
+def language_menu():
+    markup = types.InlineKeyboardMarkup(row_width=2)
+    markup.add(
+        types.InlineKeyboardButton("ENGLISH", callback_data="guide_en"),
+        types.InlineKeyboardButton("HINGLISH", callback_data="guide_hi")
+    )
+    markup.add(types.InlineKeyboardButton("‹ DASHBOARD", callback_data="home"))
+    return markup
+
+
+def get_language_text():
+    return (
+        "<b>INSTALLATION GUIDE ENGINE</b>\n"
+        "────────────────────────\n"
+        "Select your preferred language for setup steps:"
+    )
+
+
+ENGLISH_GUIDE = [
+    "<b>STEP 01</b>\n\nDownload the required package from our official channel.",
+    "<b>STEP 02</b>\n\nOpen ZArchiver or your system File Manager.",
+    "<b>STEP 03</b>\n\nNavigate to the <code>/Download</code> directory.",
+    "<b>STEP 04</b>\n\nExtract the downloaded <code>.zip</code> or <code>.pak</code> file.",
+    "<b>STEP 05</b>\n\nVerify extracted files and copy required resources.",
+    "<b>STEP 06</b>\n\nPaste files into destination:\n<code>Android/data/com.pubg.imobile/files</code>",
+    "<b>STEP 07</b>\n\nRestart your device and launch BGMI."
+]
+
+HINGLISH_GUIDE = [
+    "<b>STEP 01</b>\n\nOfficial channel se file download karein.",
+    "<b>STEP 02</b>\n\nPhone me ZArchiver app open karein.",
+    "<b>STEP 03</b>\n\nNavigate to the <code>/Download</code> directory.",
+    "<b>STEP 04</b>\n\nDownloaded file ko extract karein.",
+    "<b>STEP 05</b>\n\nExtracted folder ki files copy kar lein.",
+    "<b>STEP 06</b>\n\nInhe is path par paste karein:\n<code>Android/data/com.pubg.imobile/files</code>",
+    "<b>STEP 07</b>\n\nPhone restart karein aur game enjoy karein!"
+]
+
+
+def get_guide_page(language, page):
+    pages = ENGLISH_GUIDE if language == "en" else HINGLISH_GUIDE
+    page = max(0, min(page, len(pages) - 1))
+    return f"<b>INSTALLATION GUIDE ({language.upper()})</b>\n────────────────────────\n" + pages[page]
+
+
+def guide_menu(language, page):
+    pages = ENGLISH_GUIDE if language == "en" else HINGLISH_GUIDE
+    markup = types.InlineKeyboardMarkup(row_width=2)
+    btns = []
+    if page > 0:
+        btns.append(types.InlineKeyboardButton("‹ PREVIOUS", callback_data=f"guide_{language}_{page - 1}"))
+    if page < len(pages) - 1:
+        btns.append(types.InlineKeyboardButton("NEXT ›", callback_data=f"guide_{language}_{page + 1}"))
+    if btns:
+        markup.add(*btns)
     markup.add(types.InlineKeyboardButton("‹ DASHBOARD", callback_data="home"))
     return markup
 
@@ -831,7 +840,7 @@ def support_command(message):
 
 
 # ------------------------------------------------------------
-# KEY GENERATION & REDEMPTION COMMANDS
+# ADMIN KEY COMMANDS
 # ------------------------------------------------------------
 
 @bot.message_handler(commands=["genkey"])
@@ -850,7 +859,7 @@ def genkey_command(message):
         "────────────────────────\n"
         f"Key Code: <code>{new_key}</code>\n"
         f"Validity: <b>{days} Days</b>\n\n"
-        "<i>User can redeem this via /redeem command.</i>"
+        "<i>Send this key to user for /redeem.</i>"
     )
     bot.reply_to(message, msg, parse_mode="HTML")
 
@@ -911,6 +920,8 @@ def list_keys_command(message):
 # CALLBACK QUERY HANDLERS
 # ============================================================
 
+user_utr_states = {}
+
 @bot.callback_query_handler(func=lambda call: call.data.startswith("det_"))
 def process_details_selection(call):
     try:
@@ -941,11 +952,11 @@ def process_payment_redirection(call):
         bot.answer_callback_query(call.id)
 
         if call.data == "pay_p1":
-            pack_name, amount = "FULL VIP ENTERPRISE PACK", "2500"
+            pack_name, amount, code = "FULL VIP ENTERPRISE PACK", "2500", "p1"
         elif call.data == "pay_p2":
-            pack_name, amount = "PRO COMBAT PACK", "1500"
+            pack_name, amount, code = "PRO COMBAT PACK", "1500", "p2"
         elif call.data == "pay_p3":
-            pack_name, amount = "YOUTUBER STREAMER PACK", "750"
+            pack_name, amount, code = "YOUTUBER STREAMER PACK", "750", "p3"
         else:
             return
 
@@ -955,10 +966,10 @@ def process_payment_redirection(call):
             f"Selected Package: <b>{pack_name}</b>\n"
             f"Amount Payable: <code>INR {amount}</code>\n"
             f"Merchant UPI ID: <code>{UPI_ID}</code> <i>(Tap to copy)</i>\n\n"
-            "<b>AUTOMATED PAYMENT INSTRUCTIONS:</b>\n"
+            "<b>PAYMENT INSTRUCTIONS:</b>\n"
             "1. Scan the Google Pay QR code above OR copy the UPI ID.\n"
-            "2. Execute the payment of exact amount.\n"
-            "3. Tap 'SUBMIT UTR' below and enter 12-digit UTR number for automatic key delivery."
+            "2. Complete the transfer via GPay, PhonePe, or Paytm.\n"
+            "3. Tap 'SUBMIT UTR' below and enter your 12-digit UTR/Txn ID."
         )
 
         try:
@@ -966,7 +977,7 @@ def process_payment_redirection(call):
         except Exception:
             pass
 
-        markup = payment_invoice_menu()
+        markup = payment_invoice_menu(code)
 
         if os.path.exists("qr.png"):
             try:
@@ -1000,10 +1011,11 @@ def process_payment_redirection(call):
         print(f"Payment error: {e}")
 
 
-@bot.callback_query_handler(func=lambda call: call.data == "btn_submit_utr")
+@bot.callback_query_handler(func=lambda call: call.data.startswith("sub_utr_"))
 def submit_utr_callback(call):
     bot.answer_callback_query(call.id)
-    user_utr_states[call.from_user.id] = True
+    pack_code = call.data.replace("sub_utr_", "")
+    user_utr_states[call.from_user.id] = pack_code
     send_auto_delete_message(
         call.message.chat.id,
         "<b>⚡ ENTER 12-DIGIT UTR NUMBER</b>\n────────────────────────\nPlease send your 12-digit UPI UTR / Transaction Reference number now:",
@@ -1030,7 +1042,78 @@ def trigger_buy_callback(call):
 
 
 # ============================================================
-# USER UTR INPUT LISTENER & MODERATION HANDLER
+# ADMIN APPROVAL / REJECTION CALLBACK HANDLERS
+# ============================================================
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("app_"))
+def admin_approve_callback(call):
+    if call.from_user.id not in OWNER_IDS:
+        return
+
+    bot.answer_callback_query(call.id)
+    parts = call.data.split("_")
+    target_user_id = int(parts[1])
+    utr = parts[2]
+
+    # Generate key and redeem for user
+    auto_key = generate_key_code(90)
+    success, expiry_str = redeem_vip_key(target_user_id, auto_key)
+
+    # Edit Admin Message
+    bot.edit_message_text(
+        f"<b>✅ PAYMENT APPROVED</b>\n────────────────────────\nUser ID: <code>{target_user_id}</code>\nUTR: <code>{utr}</code>\nGenerated Key: <code>{auto_key}</code>",
+        call.message.chat.id,
+        call.message.message_id,
+        parse_mode="HTML"
+    )
+
+    # Send Private Key directly to User's DM
+    try:
+        user_msg = (
+            "<b>🎉 PAYMENT VERIFIED & APPROVED!</b>\n"
+            "────────────────────────────────────────\n"
+            "Your transaction has been verified successfully.\n\n"
+            f"● <b>Your Private VIP Key:</b> <code>{auto_key}</code>\n"
+            f"● <b>Valid Until:</b> <b>{expiry_str}</b>\n\n"
+            "<i>Your VIP Subscription is now <b>ACTIVE</b>! Use /access to check status.</i>"
+        )
+        bot.send_message(target_user_id, user_msg, parse_mode="HTML")
+    except Exception as e:
+        print(f"Failed to send DM to user: {e}")
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("rej_"))
+def admin_reject_callback(call):
+    if call.from_user.id not in OWNER_IDS:
+        return
+
+    bot.answer_callback_query(call.id)
+    parts = call.data.split("_")
+    target_user_id = int(parts[1])
+    utr = parts[2]
+
+    bot.edit_message_text(
+        f"<b>❌ PAYMENT REJECTED</b>\n────────────────────────\nUser ID: <code>{target_user_id}</code>\nUTR: <code>{utr}</code>",
+        call.message.chat.id,
+        call.message.message_id,
+        parse_mode="HTML"
+    )
+
+    try:
+        user_msg = (
+            "<b>❌ PAYMENT VERIFICATION FAILED</b>\n"
+            "────────────────────────────────────────\n"
+            f"Submitted UTR: <code>{utr}</code>\n\n"
+            "Your transaction could not be verified in our merchant statement.\n"
+            "Please contact Admin if you believe this is an error."
+        )
+        bot.send_message(target_user_id, user_msg, parse_mode="HTML")
+    except Exception:
+        pass
+
+
+# ============================================================
+# USER UTR INPUT & GROUP MODERATION
 # ============================================================
 
 @bot.message_handler(
@@ -1038,54 +1121,76 @@ def trigger_buy_callback(call):
     content_types=["text", "photo", "video", "document", "audio", "voice", "animation"]
 )
 def handle_all_messages(message):
-    user_id = message.from_user.id
+    user = message.from_user
+    user_id = user.id
 
-    # Handle UTR input for automated verification
+    # Check if user is submitting UTR
     if user_id in user_utr_states:
-        utr = message.text.strip()
+        pack_code = user_utr_states[user_id]
         del user_utr_states[user_id]
+        utr = message.text.strip()
 
         if not utr.isdigit() or len(utr) < 10:
             send_auto_delete_message(
                 message.chat.id,
-                "<b>❌ INVALID UTR FORMAT</b>\n────────────────────────\nUTR must be a 10-12 digit numeric code. Try again.",
+                "<b>❌ INVALID UTR FORMAT</b>\n────────────────────────\nUTR must be a 10-12 digit numeric code. Please try again.",
                 delay=30
             )
             return
 
+        if pack_code == "p1":
+            pack_name, amount = "FULL VIP ENTERPRISE PACK", "INR 2,500"
+        elif pack_code == "p2":
+            pack_name, amount = "PRO COMBAT PACK", "INR 1,500"
+        else:
+            pack_name, amount = "YOUTUBER STREAMER PACK", "INR 750"
+
         now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
         with db_lock:
             connection = get_connection()
             cursor = connection.cursor()
-            cursor.execute("INSERT OR REPLACE INTO transactions (utr, user_id, amount, status, submitted_at) VALUES (?, ?, ?, ?, ?)", (utr, user_id, "PENDING", "PENDING", now_str))
+            cursor.execute("INSERT OR REPLACE INTO transactions (utr, user_id, pack_name, amount, status, submitted_at) VALUES (?, ?, ?, ?, ?, ?)", (utr, user_id, pack_name, amount, "PENDING", now_str))
             connection.commit()
             connection.close()
 
-        # Generate instant auto key for user
-        auto_key = generate_key_code(90)
-        redeem_vip_key(user_id, auto_key)
-
-        msg = (
-            "<b>✅ PAYMENT VERIFICATION SUCCESSFUL</b>\n"
-            "────────────────────────\n"
-            f"Submitted UTR: <code>{utr}</code>\n"
-            f"Auto-Generated Key: <code>{auto_key}</code>\n"
-            "Validity: <b>90 Days (3 Months)</b>\n\n"
-            "<i>Your VIP Access has been activated instantly! Use /access to check status.</i>"
+        # Send Pending confirmation to User
+        send_auto_delete_message(
+            message.chat.id,
+            "<b>⏳ PAYMENT SUBMITTED FOR VERIFICATION</b>\n────────────────────────────────────────\nYour UTR has been sent to Admin for review.\nYou will receive your VIP Key in private DM once approved.",
+            delay=60
         )
-        send_auto_delete_message(message.chat.id, msg, delay=90)
 
-        # Notify Admin
-        for owner in OWNER_IDS:
+        # Send Approval Alert directly to Admin DM (Permanent, NO Auto-Delete)
+        first_name = html.escape(user.first_name or "User")
+        admin_alert = (
+            "<b>⚡ NEW PAYMENT PENDING APPROVAL</b>\n"
+            "────────────────────────────────────────\n"
+            f"● <b>User:</b> {first_name} (<code>{user_id}</code>)\n"
+            f"● <b>Package:</b> {pack_name}\n"
+            f"● <b>Amount Paid:</b> <code>{amount}</code>\n"
+            f"● <b>Submitted UTR:</b> <code>{utr}</code>\n\n"
+            "────────────────────────────────────────\n"
+            "<i>Verify in your merchant bank statement before approving.</i>"
+        )
+
+        markup = types.InlineKeyboardMarkup(row_width=2)
+        markup.add(
+            types.InlineKeyboardButton("✅ APPROVE", callback_data=f"app_{user_id}_{utr}"),
+            types.InlineKeyboardButton("❌ REJECT", callback_data=f"rej_{user_id}_{utr}")
+        )
+
+        for owner_id in OWNER_IDS:
             try:
-                bot.send_message(owner, f"<b>⚡ NEW PAYMENT VERIFIED</b>\nUser: {user_id}\nUTR: <code>{utr}</code>\nKey: <code>{auto_key}</code>", parse_mode="HTML")
-            except Exception:
-                pass
+                bot.send_message(owner_id, admin_alert, reply_markup=markup, parse_mode="HTML")
+            except Exception as admin_err:
+                print(f"Failed to send alert to Admin DM: {admin_err}")
         return
 
-    # Group moderation
+    # Group Moderation
     if message.chat.type in ["group", "supergroup"]:
         send_first_time_welcome(message)
+
         if user_id in OWNER_IDS:
             return
 
@@ -1099,15 +1204,16 @@ def handle_all_messages(message):
             pass
 
         warning_number = add_warning(message.chat.id, user_id)
+
         if warning_number >= 3:
             try:
                 bot.ban_chat_member(message.chat.id, user_id)
-                send_auto_delete_message(message.chat.id, banned_text(message.from_user))
+                send_auto_delete_message(message.chat.id, banned_text(user))
             except Exception:
                 pass
             return
 
-        send_auto_delete_message(message.chat.id, warning_text(message.from_user, warning_number))
+        send_auto_delete_message(message.chat.id, warning_text(user, warning_number))
 
 
 # ============================================================
