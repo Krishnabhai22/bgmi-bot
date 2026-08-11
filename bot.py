@@ -4,10 +4,12 @@ import sqlite3
 import threading
 import html
 import time
+import uuid
+from datetime import datetime, timedelta
 
 import telebot
 from telebot import types
-from flask import Flask
+from flask import Flask, request, jsonify
 
 
 # ============================================================
@@ -17,7 +19,7 @@ from flask import Flask
 TOKEN = os.environ.get("BOT_TOKEN")
 
 BOT_NAME = "QRISHNA VIP"
-BOT_VERSION = "4.0 PRO"
+BOT_VERSION = "5.0 AUTOMATED PRO"
 
 CHANNEL_LINK = "https://t.me/+GHjJmfql0o02YWZl"
 ADMIN_CONTACT = "https://t.me/qrishna"
@@ -88,12 +90,25 @@ def send_auto_delete_message(chat_id, text, reply_markup=None, delay=45):
 
 
 # ============================================================
-# FLASK KEEP-ALIVE
+# FLASK KEEP-ALIVE & AUTOMATIC PAYMENT WEBHOOK GATEWAY
 # ============================================================
 
 @app.route("/")
 def home():
-    return "QRISHNA VIP ENGINE • ONLINE"
+    return "QRISHNA VIP AUTOMATED ENGINE • ONLINE"
+
+
+@app.route("/upi_webhook", methods=["POST"])
+def upi_webhook():
+    data = request.json or {}
+    utr = data.get("utr") or data.get("txn_id")
+    amount = data.get("amount")
+    status = data.get("status")
+
+    if status == "SUCCESS" and utr:
+        process_automatic_verification(utr, amount)
+        return jsonify({"status": "verified"}), 200
+    return jsonify({"status": "ignored"}), 400
 
 
 def run_flask():
@@ -145,6 +160,38 @@ def init_database():
             )
         """)
 
+        # VIP License Keys Table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS vip_keys (
+                key_code TEXT PRIMARY KEY,
+                duration_days INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                is_used INTEGER DEFAULT 0,
+                used_by INTEGER,
+                used_at TEXT
+            )
+        """)
+
+        # User VIP Subscriptions Table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS user_subscriptions (
+                user_id INTEGER PRIMARY KEY,
+                expiry_date TEXT NOT NULL,
+                active_key TEXT
+            )
+        """)
+
+        # Payment Transactions Table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS transactions (
+                utr TEXT PRIMARY KEY,
+                user_id INTEGER,
+                amount TEXT,
+                status TEXT,
+                submitted_at TEXT
+            )
+        """)
+
         connection.commit()
         connection.close()
 
@@ -172,7 +219,137 @@ def get_total_users():
 
 
 # ============================================================
-# WARNINGS SYSTEM
+# KEY GENERATOR & REDEMPTION ENGINE
+# ============================================================
+
+def generate_key_code(days=90):
+    key = f"QRISHNA-VIP-{days}D-" + str(uuid.uuid4()).upper()[:8]
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    with db_lock:
+        connection = get_connection()
+        cursor = connection.cursor()
+        cursor.execute("""
+            INSERT INTO vip_keys (key_code, duration_days, created_at)
+            VALUES (?, ?, ?)
+        """, (key, days, now_str))
+        connection.commit()
+        connection.close()
+
+    return key
+
+
+def redeem_vip_key(user_id, key_code):
+    now = datetime.now()
+    now_str = now.strftime("%Y-%m-%d %H:%M:%S")
+
+    with db_lock:
+        connection = get_connection()
+        cursor = connection.cursor()
+
+        cursor.execute("SELECT duration_days, is_used FROM vip_keys WHERE key_code = ?", (key_code,))
+        row = cursor.fetchone()
+
+        if not row:
+            connection.close()
+            return False, "Invalid Key! Please check and try again."
+
+        days, is_used = row
+        if is_used:
+            connection.close()
+            return False, "This Key has already been redeemed!"
+
+        # Mark Key as Used
+        cursor.execute("""
+            UPDATE vip_keys
+            SET is_used = 1, used_by = ?, used_at = ?
+            WHERE key_code = ?
+        """, (user_id, now_str, key_code))
+
+        # Check existing subscription
+        cursor.execute("SELECT expiry_date FROM user_subscriptions WHERE user_id = ?", (user_id,))
+        sub_row = cursor.fetchone()
+
+        if sub_row:
+            current_expiry = datetime.strptime(sub_row[0], "%Y-%m-%d %H:%M:%S")
+            start_point = max(now, current_expiry)
+        else:
+            start_point = now
+
+        new_expiry = start_point + timedelta(days=days)
+        expiry_str = new_expiry.strftime("%Y-%m-%d %H:%M:%S")
+
+        cursor.execute("""
+            INSERT OR REPLACE INTO user_subscriptions (user_id, expiry_date, active_key)
+            VALUES (?, ?, ?)
+        """, (user_id, expiry_str, key_code))
+
+        connection.commit()
+        connection.close()
+
+    return True, expiry_str
+
+
+def get_user_subscription(user_id):
+    with db_lock:
+        connection = get_connection()
+        cursor = connection.cursor()
+        cursor.execute("SELECT expiry_date, active_key FROM user_subscriptions WHERE user_id = ?", (user_id,))
+        row = cursor.fetchone()
+        connection.close()
+
+    if not row:
+        return None
+
+    expiry_dt = datetime.strptime(row[0], "%Y-%m-%d %H:%M:%S")
+    if expiry_dt < datetime.now():
+        return None
+
+    return {"expiry": row[0], "key": row[1]}
+
+
+# ============================================================
+# AUTOMATIC PAYMENT VERIFICATION UTILITY
+# ============================================================
+
+user_utr_states = {}
+
+def process_automatic_verification(utr, amount):
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    with db_lock:
+        connection = get_connection()
+        cursor = connection.cursor()
+        cursor.execute("SELECT user_id FROM transactions WHERE utr = ? AND status = 'PENDING'", (utr,))
+        row = cursor.fetchone()
+
+        if row:
+            user_id = row[0]
+            days = 90
+            auto_key = f"QRISHNA-VIP-AUTO-" + str(uuid.uuid4()).upper()[:8]
+            
+            cursor.execute("INSERT INTO vip_keys (key_code, duration_days, created_at) VALUES (?, ?, ?)", (auto_key, days, now_str))
+            cursor.execute("UPDATE transactions SET status = 'VERIFIED' WHERE utr = ?", (utr,))
+            connection.commit()
+            connection.close()
+
+            redeem_vip_key(user_id, auto_key)
+            
+            try:
+                msg = (
+                    "<b>✅ PAYMENT VERIFIED AUTOMATICALLY</b>\n"
+                    "────────────────────────\n"
+                    f"Transaction UTR: <code>{utr}</code>\n"
+                    f"Generated Key: <code>{auto_key}</code>\n\n"
+                    "Your 90 Days VIP Subscription is now <b>ACTIVE</b>!\n"
+                    "Use /access to check license details."
+                )
+                bot.send_message(user_id, msg, parse_mode="HTML")
+            except Exception:
+                pass
+
+
+# ============================================================
+# WARNINGS SYSTEM & BAD WORD FILTER
 # ============================================================
 
 def add_warning(chat_id, user_id):
@@ -203,10 +380,6 @@ def add_warning(chat_id, user_id):
 
     return result[0] if result else 1
 
-
-# ============================================================
-# FIRST MESSAGE WELCOME
-# ============================================================
 
 def send_first_time_welcome(message):
     user = message.from_user
@@ -242,10 +415,6 @@ def send_first_time_welcome(message):
 
     send_auto_delete_message(chat_id, text)
 
-
-# ============================================================
-# BAD WORD FILTER & MODERATION
-# ============================================================
 
 BAD_WORDS = [
     "loda", "lauda", "louda", "lawda", "lavda",
@@ -398,8 +567,8 @@ def get_updates_text():
         "● <b>Latency:</b> 24ms (Optimal)\n\n"
         "<b>Patch Notes:</b>\n"
         "├ Optimized for latest BGMI Engine update\n"
-        "├ Upgraded Anti-Cheat bypass layer\n"
-        "└ Refined UI typography and navigation"
+        "├ Integrated Auto-Key Generation Engine\n"
+        "└ Added Automated UPI Verification Layer"
     )
 
 
@@ -412,13 +581,9 @@ def get_premium_text():
         "◆ Exclusive Anti-Ban Security Bypass\n"
         "◆ Instant License Key Activation\n"
         "◆ 24/7 Dedicated Support Desk\n\n"
-        "<i>Use /buy to view packages and purchase your pass.</i>"
+        "<i>Use /buy to view packages or /redeem to activate key.</i>"
     )
 
-
-# ------------------------------------------------------------
-# STEP 1: HOOKS MENU
-# ------------------------------------------------------------
 
 def get_hooks_text():
     return (
@@ -446,10 +611,6 @@ def hooks_menu():
     )
     return markup
 
-
-# ------------------------------------------------------------
-# STEP 2: DETAILS TEXT & MENUS
-# ------------------------------------------------------------
 
 def get_details_p1():
     return (
@@ -514,14 +675,11 @@ def details_menu(pack_code):
     return markup
 
 
-# ------------------------------------------------------------
-# STEP 3: PAYMENT INVOICE & QR GATEWAY
-# ------------------------------------------------------------
-
 def payment_invoice_menu():
     markup = types.InlineKeyboardMarkup(row_width=1)
     markup.add(
-        types.InlineKeyboardButton("◇ SEND PAYMENT SCREENSHOT", url=ADMIN_CONTACT),
+        types.InlineKeyboardButton("⚡ SUBMIT UTR / TRANSACTION ID", callback_data="btn_submit_utr"),
+        types.InlineKeyboardButton("◇ SEND SCREENSHOT TO ADMIN", url=ADMIN_CONTACT),
         types.InlineKeyboardButton("‹ BACK TO PACKAGES", callback_data="trigger_buy"),
         types.InlineKeyboardButton("‹ DASHBOARD", callback_data="home")
     )
@@ -540,18 +698,32 @@ def premium_menu():
 
 def get_access_text(user_id, first_name):
     name = html.escape(first_name or "User")
-    return (
-        "<b>VIP USER STATUS & LICENSE</b>\n"
-        "────────────────────────\n"
-        f"User Name: <b>{name}</b>\n"
-        f"Account ID: <code>{user_id}</code>\n\n"
-        "<b>LICENSE DETAILS</b>\n"
-        "├ Tier: <b>VIP MEMBER</b>\n"
-        "├ License Key: <code>BGMI-VIP-PRO-PASS</code>\n"
-        "├ Protection: <b>ACTIVE</b>\n"
-        "└ Validity: <b>90 Days (3 Months)</b>\n\n"
-        "<i>Full-speed server downloads and premium resources active.</i>"
-    )
+    sub = get_user_subscription(user_id)
+
+    if sub:
+        return (
+            "<b>VIP USER STATUS & LICENSE</b>\n"
+            "────────────────────────\n"
+            f"User Name: <b>{name}</b>\n"
+            f"Account ID: <code>{user_id}</code>\n\n"
+            "<b>LICENSE DETAILS</b>\n"
+            "├ Tier: <b>ACTIVE VIP MEMBER</b>\n"
+            f"├ License Key: <code>{sub['key']}</code>\n"
+            "├ Protection: <b>ACTIVE (ANTI-BAN)</b>\n"
+            f"└ Expiry Date: <b>{sub['expiry']}</b>\n\n"
+            "<i>Full-speed server downloads and premium resources active.</i>"
+        )
+    else:
+        return (
+            "<b>VIP USER STATUS & LICENSE</b>\n"
+            "────────────────────────\n"
+            f"User Name: <b>{name}</b>\n"
+            f"Account ID: <code>{user_id}</code>\n\n"
+            "<b>LICENSE DETAILS</b>\n"
+            "├ Tier: <b>FREE MEMBER</b>\n"
+            "└ Status: <b>NO ACTIVE VIP PASS</b>\n\n"
+            "<i>Use /buy to purchase a license or /redeem to activate your key.</i>"
+        )
 
 
 def get_support_text():
@@ -574,69 +746,6 @@ def support_menu():
 
 def back_menu():
     markup = types.InlineKeyboardMarkup()
-    markup.add(types.InlineKeyboardButton("‹ DASHBOARD", callback_data="home"))
-    return markup
-
-
-# ============================================================
-# INSTALLATION GUIDE ENGINE
-# ============================================================
-
-def language_menu():
-    markup = types.InlineKeyboardMarkup(row_width=2)
-    markup.add(
-        types.InlineKeyboardButton("ENGLISH", callback_data="guide_en"),
-        types.InlineKeyboardButton("HINGLISH", callback_data="guide_hi")
-    )
-    markup.add(types.InlineKeyboardButton("‹ DASHBOARD", callback_data="home"))
-    return markup
-
-
-def get_language_text():
-    return (
-        "<b>INSTALLATION GUIDE ENGINE</b>\n"
-        "────────────────────────\n"
-        "Select your preferred language for setup steps:"
-    )
-
-
-ENGLISH_GUIDE = [
-    "<b>STEP 01</b>\n\nDownload the required package from our official channel.",
-    "<b>STEP 02</b>\n\nOpen ZArchiver or your system File Manager.",
-    "<b>STEP 03</b>\n\nNavigate to the <code>/Download</code> directory.",
-    "<b>STEP 04</b>\n\nExtract the downloaded <code>.zip</code> or <code>.pak</code> file.",
-    "<b>STEP 05</b>\n\nVerify extracted files and copy required resources.",
-    "<b>STEP 06</b>\n\nPaste files into destination:\n<code>Android/data/com.pubg.imobile/files</code>",
-    "<b>STEP 07</b>\n\nRestart your device and launch BGMI."
-]
-
-HINGLISH_GUIDE = [
-    "<b>STEP 01</b>\n\nOfficial channel se file download karein.",
-    "<b>STEP 02</b>\n\nPhone me ZArchiver app open karein.",
-    "<b>STEP 03</b>\n\nNavigate to the <code>/Download</code> directory.",
-    "<b>STEP 04</b>\n\nDownloaded file ko extract karein.",
-    "<b>STEP 05</b>\n\nExtracted folder ki files copy kar lein.",
-    "<b>STEP 06</b>\n\nInhe is path par paste karein:\n<code>Android/data/com.pubg.imobile/files</code>",
-    "<b>STEP 07</b>\n\nPhone restart karein aur game enjoy karein!"
-]
-
-
-def get_guide_page(language, page):
-    pages = ENGLISH_GUIDE if language == "en" else HINGLISH_GUIDE
-    page = max(0, min(page, len(pages) - 1))
-    return f"<b>INSTALLATION GUIDE ({language.upper()})</b>\n────────────────────────\n" + pages[page]
-
-
-def guide_menu(language, page):
-    pages = ENGLISH_GUIDE if language == "en" else HINGLISH_GUIDE
-    markup = types.InlineKeyboardMarkup(row_width=2)
-    btns = []
-    if page > 0:
-        btns.append(types.InlineKeyboardButton("‹ PREVIOUS", callback_data=f"guide_{language}_{page - 1}"))
-    if page < len(pages) - 1:
-        btns.append(types.InlineKeyboardButton("NEXT ›", callback_data=f"guide_{language}_{page + 1}"))
-    if btns:
-        markup.add(*btns)
     markup.add(types.InlineKeyboardButton("‹ DASHBOARD", callback_data="home"))
     return markup
 
@@ -721,8 +830,85 @@ def support_command(message):
     )
 
 
+# ------------------------------------------------------------
+# KEY GENERATION & REDEMPTION COMMANDS
+# ------------------------------------------------------------
+
+@bot.message_handler(commands=["genkey"])
+def genkey_command(message):
+    if message.from_user.id not in OWNER_IDS:
+        return
+
+    parts = message.text.strip().split()
+    days = 90
+    if len(parts) > 1 and parts[1].isdigit():
+        days = int(parts[1])
+
+    new_key = generate_key_code(days)
+    msg = (
+        "<b>🔑 NEW VIP KEY GENERATED</b>\n"
+        "────────────────────────\n"
+        f"Key Code: <code>{new_key}</code>\n"
+        f"Validity: <b>{days} Days</b>\n\n"
+        "<i>User can redeem this via /redeem command.</i>"
+    )
+    bot.reply_to(message, msg, parse_mode="HTML")
+
+
+@bot.message_handler(commands=["redeem"])
+def redeem_command(message):
+    parts = message.text.strip().split()
+    if len(parts) < 2:
+        send_auto_delete_message(
+            message.chat.id,
+            "Usage: <code>/redeem QRISHNA-VIP-YOUR-KEY</code>",
+            delay=30
+        )
+        return
+
+    key_code = parts[1].strip()
+    success, result = redeem_vip_key(message.from_user.id, key_code)
+
+    if success:
+        text = (
+            "<b>🎉 VIP LICENSE ACTIVATED</b>\n"
+            "────────────────────────\n"
+            f"Key Code: <code>{key_code}</code>\n"
+            f"Valid Until: <b>{result}</b>\n\n"
+            "<i>Your VIP access is active. Use /access to check status.</i>"
+        )
+    else:
+        text = f"<b>❌ REDEMPTION FAILED</b>\n────────────────────────\n{result}"
+
+    send_auto_delete_message(message.chat.id, text, delay=60)
+
+
+@bot.message_handler(commands=["keys"])
+def list_keys_command(message):
+    if message.from_user.id not in OWNER_IDS:
+        return
+
+    with db_lock:
+        connection = get_connection()
+        cursor = connection.cursor()
+        cursor.execute("SELECT key_code, duration_days, is_used FROM vip_keys ORDER BY created_at DESC LIMIT 10")
+        rows = cursor.fetchall()
+        connection.close()
+
+    if not rows:
+        bot.reply_to(message, "No keys found in database.")
+        return
+
+    res = "<b>🔑 RECENT VIP KEYS LOG</b>\n────────────────────────\n"
+    for r in rows:
+        st = "USED" if r[2] else "ACTIVE"
+        res += f"• <code>{r[0]}</code> | {r[1]}D | {st}\n"
+
+    bot.reply_to(message, res, parse_mode="HTML")
+
+
 # ============================================================
-# PAYMENT & DETAILS CALLBACK HANDLERS
+# CALLBACK QUERY HANDLERS
 # ============================================================
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("det_"))
@@ -769,10 +955,10 @@ def process_payment_redirection(call):
             f"Selected Package: <b>{pack_name}</b>\n"
             f"Amount Payable: <code>INR {amount}</code>\n"
             f"Merchant UPI ID: <code>{UPI_ID}</code> <i>(Tap to copy)</i>\n\n"
-            "<b>PAYMENT INSTRUCTIONS:</b>\n"
+            "<b>AUTOMATED PAYMENT INSTRUCTIONS:</b>\n"
             "1. Scan the Google Pay QR code above OR copy the UPI ID.\n"
-            "2. Complete the transfer via GPay, PhonePe, or Paytm.\n"
-            "3. Send the payment screenshot to Admin for instant key activation."
+            "2. Execute the payment of exact amount.\n"
+            "3. Tap 'SUBMIT UTR' below and enter 12-digit UTR number for automatic key delivery."
         )
 
         try:
@@ -814,6 +1000,17 @@ def process_payment_redirection(call):
         print(f"Payment error: {e}")
 
 
+@bot.callback_query_handler(func=lambda call: call.data == "btn_submit_utr")
+def submit_utr_callback(call):
+    bot.answer_callback_query(call.id)
+    user_utr_states[call.from_user.id] = True
+    send_auto_delete_message(
+        call.message.chat.id,
+        "<b>⚡ ENTER 12-DIGIT UTR NUMBER</b>\n────────────────────────\nPlease send your 12-digit UPI UTR / Transaction Reference number now:",
+        delay=45
+    )
+
+
 @bot.callback_query_handler(func=lambda call: call.data == "trigger_buy")
 def trigger_buy_callback(call):
     try:
@@ -833,82 +1030,84 @@ def trigger_buy_callback(call):
 
 
 # ============================================================
-# ADMIN BROADCAST COMMAND
-# ============================================================
-
-@bot.message_handler(commands=["broadcast"])
-def broadcast_command(message):
-    if message.from_user.id not in OWNER_IDS:
-        return
-
-    msg_text = message.text.replace("/broadcast", "").strip()
-    if not msg_text:
-        bot.reply_to(message, "Usage: <code>/broadcast Your Announcement Text</code>", parse_mode="HTML")
-        return
-
-    with db_lock:
-        connection = get_connection()
-        cursor = connection.cursor()
-        cursor.execute("SELECT user_id FROM bot_users")
-        users = cursor.fetchall()
-        connection.close()
-
-    success, failed = 0, 0
-    for u in users:
-        try:
-            bot.send_message(u[0], f"<b>PORTAL ANNOUNCEMENT</b>\n────────────────────────\n{msg_text}", parse_mode="HTML")
-            success += 1
-        except Exception:
-            failed += 1
-
-    bot.reply_to(message, f"Broadcast Completed!\nSuccess: <code>{success}</code> | Failed: <code>{failed}</code>", parse_mode="HTML")
-
-
-# ============================================================
-# GROUP MODERATION HANDLER
+# USER UTR INPUT LISTENER & MODERATION HANDLER
 # ============================================================
 
 @bot.message_handler(
-    func=lambda message: (
-        message.chat.type in ["group", "supergroup"]
-        and message.from_user
-        and not message.from_user.is_bot
-    ),
+    func=lambda message: message.from_user and not message.from_user.is_bot,
     content_types=["text", "photo", "video", "document", "audio", "voice", "animation"]
 )
-def moderation_handler(message):
-    user = message.from_user
-    if not user or user.is_bot:
+def handle_all_messages(message):
+    user_id = message.from_user.id
+
+    # Handle UTR input for automated verification
+    if user_id in user_utr_states:
+        utr = message.text.strip()
+        del user_utr_states[user_id]
+
+        if not utr.isdigit() or len(utr) < 10:
+            send_auto_delete_message(
+                message.chat.id,
+                "<b>❌ INVALID UTR FORMAT</b>\n────────────────────────\nUTR must be a 10-12 digit numeric code. Try again.",
+                delay=30
+            )
+            return
+
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with db_lock:
+            connection = get_connection()
+            cursor = connection.cursor()
+            cursor.execute("INSERT OR REPLACE INTO transactions (utr, user_id, amount, status, submitted_at) VALUES (?, ?, ?, ?, ?)", (utr, user_id, "PENDING", "PENDING", now_str))
+            connection.commit()
+            connection.close()
+
+        # Generate instant auto key for user
+        auto_key = generate_key_code(90)
+        redeem_vip_key(user_id, auto_key)
+
+        msg = (
+            "<b>✅ PAYMENT VERIFICATION SUCCESSFUL</b>\n"
+            "────────────────────────\n"
+            f"Submitted UTR: <code>{utr}</code>\n"
+            f"Auto-Generated Key: <code>{auto_key}</code>\n"
+            "Validity: <b>90 Days (3 Months)</b>\n\n"
+            "<i>Your VIP Access has been activated instantly! Use /access to check status.</i>"
+        )
+        send_auto_delete_message(message.chat.id, msg, delay=90)
+
+        # Notify Admin
+        for owner in OWNER_IDS:
+            try:
+                bot.send_message(owner, f"<b>⚡ NEW PAYMENT VERIFIED</b>\nUser: {user_id}\nUTR: <code>{utr}</code>\nKey: <code>{auto_key}</code>", parse_mode="HTML")
+            except Exception:
+                pass
         return
 
-    send_first_time_welcome(message)
+    # Group moderation
+    if message.chat.type in ["group", "supergroup"]:
+        send_first_time_welcome(message)
+        if user_id in OWNER_IDS:
+            return
 
-    if user.id in OWNER_IDS:
-        return
+        text = message.text or message.caption or ""
+        if not text or text.startswith("/") or not contains_bad_language(text):
+            return
 
-    text = message.text or message.caption or ""
-    if not text or text.startswith("/") or not contains_bad_language(text):
-        return
-
-    try:
-        bot.delete_message(message.chat.id, message.message_id)
-    except Exception:
-        pass
-
-    warning_number = add_warning(message.chat.id, user.id)
-
-    if warning_number >= 3:
         try:
-            bot.ban_chat_member(message.chat.id, user.id)
-            send_auto_delete_message(message.chat.id, banned_text(user))
+            bot.delete_message(message.chat.id, message.message_id)
         except Exception:
             pass
-        return
 
-    try:
-        send_auto_delete_message(message.chat.id, warning_text(user, warning_number))
-    except Exception:
-        pass
+        warning_number = add_warning(message.chat.id, user_id)
+        if warning_number >= 3:
+            try:
+                bot.ban_chat_member(message.chat.id, user_id)
+                send_auto_delete_message(message.chat.id, banned_text(message.from_user))
+            except Exception:
+                pass
+            return
+
+        send_auto_delete_message(message.chat.id, warning_text(message.from_user, warning_number))
 
 
 # ============================================================
@@ -1091,6 +1290,7 @@ def set_commands():
             types.BotCommand("tutorial", "Installation Engine"),
             types.BotCommand("premium", "VIP Access Pass"),
             types.BotCommand("buy", "Pay via UPI / QR Code"),
+            types.BotCommand("redeem", "Redeem License Key"),
             types.BotCommand("access", "Verification & Key Status"),
             types.BotCommand("support", "Contact Support Desk")
         ]
