@@ -22,6 +22,11 @@ BOT_VERSION = "4.0 PRO"
 CHANNEL_LINK = "https://t.me/+GHjJmfql0o02YWZl"
 ADMIN_CONTACT = "https://t.me/qrishna"
 
+# ------------------------------------------------------------
+# PAYMENT CONFIGURATION
+# ------------------------------------------------------------
+UPI_ID = "lucky25october@okaxis"
+
 OWNER_IDS = {
     1332494807
 }
@@ -399,14 +404,26 @@ def get_updates_text():
 
 def get_premium_text():
     return (
-        "<b>VIP ACCESS PASS</b>\n"
-        "────────────────────────\n"
-        "Unlock elite configurations and priority bandwidth:\n\n"
-        "◆ Direct High-Speed CDN Download Links\n"
-        "◆ Exclusive Anti-Ban Security Bypass\n"
-        "◆ Instant License Key Activation\n"
-        "◆ 24/7 Dedicated Support Desk\n\n"
-        "<i>Contact Admin to upgrade your access level.</i>"
+        "<b>VIP SUBSCRIPTION PACKAGES & BILLING PORTAL</b>\n"
+        "────────────────────────────────────────\n"
+        "Select an authorization tier to proceed with access:\n\n"
+        "<b>TIER 01: ALL-IN-ONE ENTERPRISE PACK</b> — <code>INR 2,500</code>\n"
+        "├ Full VIP Access to All Configurations\n"
+        "├ Maximum Performance & CDN Direct Bandwidth\n"
+        "└ 100% Anti-Ban Security Bypass Module\n\n"
+        "<b>TIER 02: COMBAT PRO PACK</b> — <code>INR 2,000</code>\n"
+        "├ Magic Bullet Configuration + Precision Aimbot\n"
+        "└ Full ESP Wallhack Tracking System\n\n"
+        "<b>TIER 03: STREAMER LEGIT PACK</b> — <code>INR 750</code>\n"
+        "├ 10% Soft Magic Bullet\n"
+        "├ 10% Assist Aimbot Module\n"
+        "└ 30% Recoil Reduction System\n\n"
+        "────────────────────────────────────────\n"
+        f"<b>OFFICIAL MERCHANT UPI ID:</b> <code>{UPI_ID}</code>\n\n"
+        "<b>ACTIVATION PROCEDURE:</b>\n"
+        "1. Scan the embedded QR Code or copy the Merchant UPI ID.\n"
+        "2. Execute payment via GPay, PhonePe, or Paytm.\n"
+        "3. Dispatch payment screenshot to System Admin for verification."
     )
 
 
@@ -564,13 +581,27 @@ def tutorial_command(message):
     )
 
 
-@bot.message_handler(commands=["premium"])
-def premium_command(message):
-    send_auto_delete_message(
-        message.chat.id,
-        get_premium_text(),
-        reply_markup=premium_menu()
-    )
+@bot.message_handler(commands=["premium", "buy", "pay"])
+def buy_command(message):
+    caption_text = get_premium_text()
+
+    try:
+        if os.path.exists("qr.png"):
+            with open("qr.png", "rb") as photo:
+                sent_msg = bot.send_photo(
+                    chat_id=message.chat.id,
+                    photo=photo,
+                    caption=caption_text,
+                    parse_mode="HTML",
+                    reply_markup=premium_menu()
+                )
+            if sent_msg:
+                auto_delete_message(message.chat.id, sent_msg.message_id, delay=60)
+        else:
+            send_auto_delete_message(message.chat.id, caption_text, reply_markup=premium_menu(), delay=60)
+    except Exception as e:
+        print(f"Error sending buy option: {e}")
+        send_auto_delete_message(message.chat.id, caption_text, reply_markup=premium_menu(), delay=60)
 
 
 @bot.message_handler(commands=["access"])
@@ -739,13 +770,7 @@ def cb_tutorial(call):
 def cb_premium(call):
     try:
         bot.answer_callback_query(call.id)
-        bot.edit_message_text(
-            get_premium_text(),
-            call.message.chat.id,
-            call.message.message_id,
-            reply_markup=premium_menu(),
-            parse_mode="HTML"
-        )
+        buy_command(call.message)
     except Exception:
         pass
 
@@ -850,6 +875,7 @@ def set_commands():
             types.BotCommand("updates", "View System Logs"),
             types.BotCommand("tutorial", "Installation Engine"),
             types.BotCommand("premium", "VIP Access Pass"),
+            types.BotCommand("buy", "Pay via UPI / QR Code"),
             types.BotCommand("access", "Verification & Key Status"),
             types.BotCommand("support", "Contact Support Desk")
         ]
