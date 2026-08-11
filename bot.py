@@ -768,6 +768,40 @@ def guide_english_callback(call):
         pass
 
 
+@bot.callback_query_handler(func=lambda call: call.data == "guide_hi")
+def guide_hinglish_callback(call):
+    try:
+        bot.answer_callback_query(call.id)
+        bot.edit_message_text(
+            get_guide_page("hi", 0),
+            call.message.chat.id,
+            call.message.message_id,
+            reply_markup=guide_menu("hi", 0)
+        )
+    except Exception:
+        pass
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("guide_en_"))
+def guide_english_pages(call):
+    try:
+        page = int(call.data.replace("guide_en_", ""))
+    except Exception:
+        bot.answer_callback_query(call.id)
+        return
+
+    try:
+        bot.answer_callback_query(call.id)
+        bot.edit_message_text(
+            get_guide_page("en", page),
+            call.message.chat.id,
+            call.message.message_id,
+            reply_markup=guide_menu("en", page)
+        )
+    except Exception:
+        pass
+
+
 @bot.callback_query_handler(func=lambda call: call.data.startswith("guide_hi_"))
 def guide_hinglish_pages(call):
     try:
