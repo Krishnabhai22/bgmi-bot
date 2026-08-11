@@ -4,7 +4,6 @@ import sqlite3
 import threading
 import html
 import time
-import urllib.parse
 
 import telebot
 from telebot import types
@@ -465,7 +464,7 @@ def get_details_p1():
         "├ Full ESP Wallhack Tracking System\n"
         "└ Anti-Cheat Bypass Core\n\n"
         "────────────────────────────────────────\n"
-        "<i>Tap below to select your payment app and proceed.</i>"
+        "<i>Tap below to proceed with the payment invoice.</i>"
     )
 
 
@@ -483,7 +482,7 @@ def get_details_p2():
         "<b>RULES & REGULATIONS:</b>\n"
         "└ <b>8–10 Kills Limit Per Match</b> (Strictly enforce to avoid mass reports)\n\n"
         "────────────────────────────────────────\n"
-        "<i>Tap below to select your payment app and proceed.</i>"
+        "<i>Tap below to proceed with the payment invoice.</i>"
     )
 
 
@@ -501,7 +500,7 @@ def get_details_p3():
         "<b>SPECIAL NOTES:</b>\n"
         "└ No ESP included. No kill limits. Designed for legit gameplay and content creation.\n\n"
         "────────────────────────────────────────\n"
-        "<i>Tap below to select your payment app and proceed.</i>"
+        "<i>Tap below to proceed with the payment invoice.</i>"
     )
 
 
@@ -516,35 +515,14 @@ def details_menu(pack_code):
 
 
 # ------------------------------------------------------------
-# STEP 3: DIRECT REDIRECT PAYMENT APPS (DEEP LINKS)
+# STEP 3: PAYMENT INVOICE & QR GATEWAY
 # ------------------------------------------------------------
 
-def generate_upi_link(amount, note_text):
-    params = {
-        "pa": UPI_ID,
-        "pn": PAYEE_NAME,
-        "am": str(amount),
-        "cu": "INR",
-        "tn": note_text
-    }
-    return "upi://pay?" + urllib.parse.urlencode(params)
-
-
-def payment_apps_menu(amount_raw, pack_name):
-    upi_uri = generate_upi_link(amount_raw, f"Payment for {pack_name}")
-
-    # Deep links for direct app redirects
-    gpay_link = f"intent://pay?{urllib.parse.urlencode({'pa': UPI_ID, 'pn': PAYEE_NAME, 'am': str(amount_raw), 'cu': 'INR'})}#Intent;scheme=upi;package=com.google.android.apps.nbu.paisa.user;end"
-    phonepe_link = f"intent://pay?{urllib.parse.urlencode({'pa': UPI_ID, 'pn': PAYEE_NAME, 'am': str(amount_raw), 'cu': 'INR'})}#Intent;scheme=upi;package=com.phonepe.app;end"
-    paytm_link = f"intent://pay?{urllib.parse.urlencode({'pa': UPI_ID, 'pn': PAYEE_NAME, 'am': str(amount_raw), 'cu': 'INR'})}#Intent;scheme=upi;package=net.one97.paytm;end"
-
+def payment_invoice_menu():
     markup = types.InlineKeyboardMarkup(row_width=1)
     markup.add(
-        types.InlineKeyboardButton("PAY VIA GOOGLE PAY", url=gpay_link),
-        types.InlineKeyboardButton("PAY VIA PHONEPE", url=phonepe_link),
-        types.InlineKeyboardButton("PAY VIA PAYTM", url=paytm_link),
-        types.InlineKeyboardButton("ANY OTHER UPI APP", url=upi_uri),
-        types.InlineKeyboardButton("◇ CONTACT ADMIN", url=ADMIN_CONTACT),
+        types.InlineKeyboardButton("◇ SEND PAYMENT SCREENSHOT", url=ADMIN_CONTACT),
+        types.InlineKeyboardButton("‹ BACK TO PACKAGES", callback_data="trigger_buy"),
         types.InlineKeyboardButton("‹ DASHBOARD", callback_data="home")
     )
     return markup
@@ -744,7 +722,7 @@ def support_command(message):
 
 
 # ============================================================
-# PAYMENT & DETAILS CALLBACK HANDLERS (FIXED BINDING)
+# PAYMENT & DETAILS CALLBACK HANDLERS
 # ============================================================
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("det_"))
@@ -788,11 +766,13 @@ def process_payment_redirection(call):
         caption_text = (
             "<b>OFFICIAL INVOICE & GATEWAY</b>\n"
             "────────────────────────────────────────\n"
-            f"Package: <b>{pack_name}</b>\n"
+            f"Selected Package: <b>{pack_name}</b>\n"
             f"Amount Payable: <code>INR {amount}</code>\n"
-            f"Merchant UPI ID: <code>{UPI_ID}</code>\n\n"
-            "<b>INSTANT PAYMENT:</b>\n"
-            "Tap your preferred payment app below to automatically launch the payment screen with pre-filled details."
+            f"Merchant UPI ID: <code>{UPI_ID}</code> <i>(Tap to copy)</i>\n\n"
+            "<b>PAYMENT INSTRUCTIONS:</b>\n"
+            "1. Scan the Google Pay QR code above OR copy the UPI ID.\n"
+            "2. Complete the transfer via GPay, PhonePe, or Paytm.\n"
+            "3. Send the payment screenshot to Admin for instant key activation."
         )
 
         try:
@@ -800,22 +780,33 @@ def process_payment_redirection(call):
         except Exception:
             pass
 
+        markup = payment_invoice_menu()
+
         if os.path.exists("qr.png"):
-            with open("qr.png", "rb") as photo:
-                sent_msg = bot.send_photo(
-                    chat_id=call.message.chat.id,
-                    photo=photo,
-                    caption=caption_text,
-                    parse_mode="HTML",
-                    reply_markup=payment_apps_menu(amount, pack_name)
+            try:
+                with open("qr.png", "rb") as photo:
+                    sent_msg = bot.send_photo(
+                        chat_id=call.message.chat.id,
+                        photo=photo,
+                        caption=caption_text,
+                        parse_mode="HTML",
+                        reply_markup=markup
+                    )
+                if sent_msg:
+                    auto_delete_message(call.message.chat.id, sent_msg.message_id, delay=60)
+            except Exception as img_err:
+                print(f"Image send error, falling back to text: {img_err}")
+                send_auto_delete_message(
+                    call.message.chat.id,
+                    caption_text,
+                    reply_markup=markup,
+                    delay=60
                 )
-            if sent_msg:
-                auto_delete_message(call.message.chat.id, sent_msg.message_id, delay=60)
         else:
             send_auto_delete_message(
                 call.message.chat.id,
                 caption_text,
-                reply_markup=payment_apps_menu(amount, pack_name),
+                reply_markup=markup,
                 delay=60
             )
 
@@ -837,8 +828,8 @@ def trigger_buy_callback(call):
             reply_markup=hooks_menu(),
             delay=60
         )
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Trigger buy error: {e}")
 
 
 # ============================================================
