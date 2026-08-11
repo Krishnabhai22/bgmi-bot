@@ -44,7 +44,7 @@ if not TOKEN:
 
 bot = telebot.TeleBot(
     TOKEN,
-    parse_mode="HTML"
+    parse_mode=None  # Explicit per-message mode setting
 )
 
 
@@ -70,7 +70,8 @@ def send_auto_delete_message(chat_id, text, reply_markup=None, delay=45):
             chat_id=chat_id,
             text=text,
             reply_markup=reply_markup,
-            parse_mode="HTML"
+            parse_mode="HTML",
+            disable_web_page_preview=True
         )
         if sent_msg:
             auto_delete_message(chat_id, sent_msg.message_id, delay)
@@ -326,7 +327,7 @@ def banned_text(user):
 
 
 # ============================================================
-# UI MENUS & HTML CODE TAGS
+# UI MENUS & FORMATTED TEXTS
 # ============================================================
 
 def start_menu():
