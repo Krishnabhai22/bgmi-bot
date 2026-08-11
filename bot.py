@@ -31,7 +31,7 @@ def start(message):
     user_name = message.from_user.first_name or "Friend"
 
     welcome_text = (
-        f"🎉 *Welcome to griishnabot!*\n\n"
+        f"🎉 *Welcome to qriishnabot!*\n\n"
         f"Hello *{user_name}*, welcome to our bot! 👋\n\n"
         f"📁 Click the button below to access the latest file."
     )
