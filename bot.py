@@ -34,6 +34,36 @@ start_time = time.time()
 
 
 # ============================================================
+# AUTO DELETE UTILITY (45 SECONDS)
+# ============================================================
+
+def auto_delete_message(chat_id, message_id, delay=45):
+    def delete_job():
+        try:
+            bot.delete_message(chat_id, message_id)
+        except Exception:
+            pass
+
+    timer = threading.Timer(delay, delete_job)
+    timer.daemon = True
+    timer.start()
+
+
+def send_auto_delete_message(chat_id, text, reply_markup=None, delay=45):
+    try:
+        sent_msg = bot.send_message(
+            chat_id,
+            text,
+            reply_markup=reply_markup,
+            parse_mode="HTML"
+        )
+        auto_delete_message(chat_id, sent_msg.message_id, delay)
+        return sent_msg
+    except Exception:
+        return None
+
+
+# ============================================================
 # FLASK KEEP-ALIVE
 # ============================================================
 
@@ -206,10 +236,7 @@ def send_first_time_welcome(message):
         "Use /start to access your dashboard."
     )
 
-    try:
-        bot.send_message(chat_id, text, parse_mode="HTML")
-    except Exception:
-        pass
+    send_auto_delete_message(chat_id, text)
 
 
 # ============================================================
@@ -498,79 +525,72 @@ def guide_menu(language, page):
 
 
 # ============================================================
-# COMMAND HANDLERS
+# COMMAND HANDLERS WITH AUTO DELETE
 # ============================================================
 
 @bot.message_handler(commands=["start"])
 def start(message):
     if message.from_user:
         register_user(message.from_user.id, message.from_user.first_name)
-    bot.send_message(
+    send_auto_delete_message(
         message.chat.id,
         get_start_text(),
-        reply_markup=start_menu(),
-        parse_mode="HTML"
-        )
+        reply_markup=start_menu()
+    )
 
 
 @bot.message_handler(commands=["files"])
 def files_command(message):
-    bot.send_message(
+    send_auto_delete_message(
         message.chat.id,
         get_files_text(),
-        reply_markup=files_menu(),
-        parse_mode="HTML"
+        reply_markup=files_menu()
     )
 
 
 @bot.message_handler(commands=["updates"])
 def updates_command(message):
-    bot.send_message(
+    send_auto_delete_message(
         message.chat.id,
         get_updates_text(),
-        reply_markup=back_menu(),
-        parse_mode="HTML"
+        reply_markup=back_menu()
     )
 
 
 @bot.message_handler(commands=["tutorial"])
 def tutorial_command(message):
-    bot.send_message(
+    send_auto_delete_message(
         message.chat.id,
         get_language_text(),
-        reply_markup=language_menu(),
-        parse_mode="HTML"
+        reply_markup=language_menu()
     )
 
 
 @bot.message_handler(commands=["premium"])
 def premium_command(message):
-    bot.send_message(
+    send_auto_delete_message(
         message.chat.id,
         get_premium_text(),
-        reply_markup=premium_menu(),
-        parse_mode="HTML"
+        reply_markup=premium_menu()
     )
 
 
 @bot.message_handler(commands=["access"])
 def access_command(message):
     user = message.from_user
-    bot.send_message(
+    send_auto_delete_message(
         message.chat.id,
         get_access_text(user.id, user.first_name),
-        reply_markup=back_menu(),
-        parse_mode="HTML"
+        reply_markup=back_menu()
     )
 
 
 @bot.message_handler(commands=["support"])
 def support_command(message):
-    bot.send_message(
+    send_auto_delete_message(
         message.chat.id,
         get_support_text(),
-        reply_markup=support_menu(),
-        parse_mode="HTML"
+        reply_markup=support_menu()
     )
 
 
@@ -642,13 +662,13 @@ def moderation_handler(message):
     if warning_number >= 3:
         try:
             bot.ban_chat_member(message.chat.id, user.id)
-            bot.send_message(message.chat.id, banned_text(user), parse_mode="HTML")
+            send_auto_delete_message(message.chat.id, banned_text(user))
         except Exception:
             pass
         return
 
     try:
-        bot.send_message(message.chat.id, warning_text(user, warning_number), parse_mode="HTML")
+        send_auto_delete_message(message.chat.id, warning_text(user, warning_number))
     except Exception:
         pass
 
@@ -856,6 +876,11 @@ if __name__ == "__main__":
     ).start()
 
     print("QRISHNA VIP ENGINE is ONLINE.")
+
+    try:
+        bot.remove_webhook()
+    except Exception:
+        pass
 
     bot.infinity_polling(
         timeout=60,
