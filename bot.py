@@ -3,6 +3,7 @@ import re
 import sqlite3
 import threading
 import html
+import time
 
 import telebot
 from telebot import types
@@ -10,16 +11,16 @@ from flask import Flask
 
 
 # ============================================================
-# QRISHNA • PREMIUM TELEGRAM BOT
+# QRISHNA • ENTERPRISE VIP TELEGRAM BOT
 # ============================================================
 
 TOKEN = os.environ.get("BOT_TOKEN")
 
-BOT_NAME = "QRISHNA"
-BOT_VERSION = "3.2"
+BOT_NAME = "QRISHNA VIP"
+BOT_VERSION = "4.0 PRO"
 
 CHANNEL_LINK = "https://t.me/+GHjJmfql0o02YWZl"
-ADMIN_CONTACT = "https://t.me/+GHjJmfql0o02YWZl"  # Update with your Telegram username if needed
+ADMIN_CONTACT = "https://t.me/+GHjJmfql0o02YWZl"
 
 OWNER_IDS = {
     1332494807
@@ -29,15 +30,16 @@ DB_FILE = "warnings.db"
 
 app = Flask(__name__)
 db_lock = threading.Lock()
+start_time = time.time()
 
 
 # ============================================================
-# FLASK
+# FLASK KEEP-ALIVE
 # ============================================================
 
 @app.route("/")
 def home():
-    return "QRISHNA • ONLINE"
+    return "QRISHNA VIP ENGINE • ONLINE"
 
 
 def run_flask():
@@ -49,7 +51,7 @@ def run_flask():
 
 
 # ============================================================
-# TOKEN
+# TOKEN VALIDATION
 # ============================================================
 
 if not TOKEN:
@@ -59,7 +61,7 @@ if not TOKEN:
 
 
 # ============================================================
-# TELEGRAM
+# TELEGRAM INITIALIZATION
 # ============================================================
 
 bot = telebot.TeleBot(
@@ -69,7 +71,7 @@ bot = telebot.TeleBot(
 
 
 # ============================================================
-# DATABASE
+# DATABASE MANAGEMENT
 # ============================================================
 
 def get_connection():
@@ -81,9 +83,7 @@ def get_connection():
 
 
 def init_database():
-
     with db_lock:
-
         connection = get_connection()
         cursor = connection.cursor()
 
@@ -104,51 +104,67 @@ def init_database():
             )
         """)
 
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS bot_users (
+                user_id INTEGER PRIMARY KEY,
+                first_name TEXT
+            )
+        """)
+
         connection.commit()
         connection.close()
 
 
+def register_user(user_id, first_name):
+    with db_lock:
+        connection = get_connection()
+        cursor = connection.cursor()
+        cursor.execute("""
+            INSERT OR REPLACE INTO bot_users (user_id, first_name)
+            VALUES (?, ?)
+        """, (user_id, first_name))
+        connection.commit()
+        connection.close()
+
+
+def get_total_users():
+    with db_lock:
+        connection = get_connection()
+        cursor = connection.cursor()
+        cursor.execute("SELECT COUNT(*) FROM bot_users")
+        count = cursor.fetchone()[0]
+        connection.close()
+        return count
+
+
 # ============================================================
-# WARNINGS
+# WARNINGS SYSTEM
 # ============================================================
 
 def add_warning(chat_id, user_id):
-
     with db_lock:
-
         connection = get_connection()
         cursor = connection.cursor()
 
         cursor.execute(
             """
-            INSERT INTO warnings (
-                chat_id,
-                user_id,
-                warning_count
-            )
+            INSERT INTO warnings (chat_id, user_id, warning_count)
             VALUES (?, ?, 1)
-
             ON CONFLICT(chat_id, user_id)
-            DO UPDATE SET
-                warning_count = warning_count + 1
+            DO UPDATE SET warning_count = warning_count + 1
             """,
             (chat_id, user_id)
         )
-
         connection.commit()
 
         cursor.execute(
             """
-            SELECT warning_count
-            FROM warnings
-            WHERE chat_id = ?
-            AND user_id = ?
+            SELECT warning_count FROM warnings
+            WHERE chat_id = ? AND user_id = ?
             """,
             (chat_id, user_id)
         )
-
         result = cursor.fetchone()
-
         connection.close()
 
     return result[0] if result else 1
@@ -159,9 +175,7 @@ def add_warning(chat_id, user_id):
 # ============================================================
 
 def send_first_time_welcome(message):
-
     user = message.from_user
-
     if not user or user.is_bot:
         return
 
@@ -169,50 +183,37 @@ def send_first_time_welcome(message):
     user_id = user.id
 
     with db_lock:
-
         connection = get_connection()
         cursor = connection.cursor()
-
         cursor.execute(
             """
-            INSERT OR IGNORE INTO welcomed_users (
-                chat_id,
-                user_id
-            )
+            INSERT OR IGNORE INTO welcomed_users (chat_id, user_id)
             VALUES (?, ?)
             """,
             (chat_id, user_id)
         )
-
         is_first_message = cursor.rowcount == 1
-
         connection.commit()
         connection.close()
 
     if not is_first_message:
         return
 
-    name = html.escape(
-        user.first_name or "User"
-    )
-
+    name = html.escape(user.first_name or "User")
     text = (
-        "<b>QRISHNA</b>\n\n"
-        "Welcome to our Premium Support & Assistant Bot. 👋\n\n"
-        f"Welcome, <b>{name}</b>."
+        "<b>✦ QRISHNA SYSTEM</b>\n\n"
+        f"Welcome <b>{name}</b> to the official BGMI Resource Portal.\n"
+        "Use /start to access your dashboard."
     )
 
     try:
-        bot.send_message(
-            chat_id,
-            text
-        )
+        bot.send_message(chat_id, text)
     except Exception:
         pass
 
 
 # ============================================================
-# BAD WORD FILTER
+# BAD WORD FILTER & MODERATION
 # ============================================================
 
 BAD_WORDS = [
@@ -241,205 +242,154 @@ BAD_WORDS = [
     "pussy", "cunt", "whore", "slut"
 ]
 
-BAD_WORDS = sorted(
-    set(BAD_WORDS),
-    key=len,
-    reverse=True
-)
+BAD_WORDS = sorted(set(BAD_WORDS), key=len, reverse=True)
 
 
 def normalize_text(text):
-
     if not text:
         return ""
-
     text = text.lower()
-
     replacements = {
-        "@": "a",
-        "4": "a",
-        "0": "o",
-        "1": "i",
-        "!": "i",
-        "$": "s",
-        "3": "e",
-        "5": "s"
+        "@": "a", "4": "a", "0": "o", "1": "i",
+        "!": "i", "$": "s", "3": "e", "5": "s"
     }
-
     for old, new in replacements.items():
         text = text.replace(old, new)
-
-    text = re.sub(
-        r"[\u200b-\u200f\uFEFF]",
-        "",
-        text
-    )
-
-    text = re.sub(
-        r"[^a-zA-Z\u0900-\u097F]+",
-        " ",
-        text
-    )
-
-    return re.sub(
-        r"\s+",
-        " ",
-        text
-    ).strip()
+    text = re.sub(r"[\u200b-\u200f\uFEFF]", "", text)
+    text = re.sub(r"[^a-zA-Z\u0900-\u097F]+", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def contains_bad_language(text):
-
     normalized = normalize_text(text)
-
     if not normalized:
         return False
 
     for word in BAD_WORDS:
-
-        if re.search(
-            r"(?<![a-zA-Z])"
-            + re.escape(word)
-            + r"(?![a-zA-Z])",
-            normalized
-        ):
+        if re.search(r"(?<![a-zA-Z])" + re.escape(word) + r"(?![a-zA-Z])", normalized):
             return True
 
-    compact = re.sub(
-        r"[^a-zA-Z\u0900-\u097F]",
-        "",
-        normalized
-    )
-
+    compact = re.sub(r"[^a-zA-Z\u0900-\u097F]", "", normalized)
     for word in BAD_WORDS:
-
-        compact_word = re.sub(
-            r"[^a-zA-Z\u0900-\u097F]",
-            "",
-            word
-        )
-
+        compact_word = re.sub(r"[^a-zA-Z\u0900-\u097F]", "", word)
         if len(compact_word) >= 4 and compact_word in compact:
             return True
 
     return False
 
 
-# ============================================================
-# MODERATION MESSAGES
-# ============================================================
-
 def warning_text(user, number):
-
-    name = html.escape(
-        user.first_name or "User"
-    )
-
+    name = html.escape(user.first_name or "User")
     return (
-        "<b>⚠️ COMMUNITY WARNING</b>\n\n"
-        f"👤 <b>User:</b> {name}\n"
-        "📌 <b>Reason:</b> Inappropriate language\n\n"
-        f"⚠️ <b>Warning:</b> {number} / 3\n\n"
-        "<i>Please maintain respectful language.</i>"
+        "<b>SYSTEM WARNING</b>\n"
+        "────────────────────────\n"
+        f"Target User: <b>{name}</b>\n"
+        "Infraction: Abusive / Inappropriate Language\n"
+        f"Warning Level: <code>{number} / 3</code>\n\n"
+        "<i>Please maintain standard decorum in the portal.</i>"
     )
 
 
 def banned_text(user):
-
-    name = html.escape(
-        user.first_name or "User"
-    )
-
+    name = html.escape(user.first_name or "User")
     return (
-        "<b>🚫 USER BANNED</b>\n\n"
-        f"👤 <b>User:</b> {name}\n"
-        "📌 <b>Reason:</b> 3 warnings reached\n\n"
-        "<i>The user has been removed from this group.</i>"
+        "<b>USER BANNED</b>\n"
+        "────────────────────────\n"
+        f"User: <b>{name}</b>\n"
+        "Reason: Exceeded Maximum Warnings (3/3)\n\n"
+        "<i>Access to community resources has been revoked.</i>"
     )
 
 
 # ============================================================
-# UI MENUS & TEXTS
+# UI MENUS & CLEAN MINIMAL TEXTS
 # ============================================================
 
 def start_menu():
     markup = types.InlineKeyboardMarkup(row_width=2)
     markup.add(
-        types.InlineKeyboardButton("📁 DOWNLOAD PORTAL", callback_data="btn_files"),
-        types.InlineKeyboardButton("📖 SETUP GUIDE", callback_data="btn_tutorial")
+        types.InlineKeyboardButton("◈ DOWNLOAD HUB", callback_data="btn_files"),
+        types.InlineKeyboardButton("◈ SETUP GUIDE", callback_data="btn_tutorial")
     )
     markup.add(
-        types.InlineKeyboardButton("💎 VIP ACCESS", callback_data="btn_premium"),
-        types.InlineKeyboardButton("💬 SUPPORT DESK", callback_data="btn_support")
+        types.InlineKeyboardButton("◈ VIP PASS", callback_data="btn_premium"),
+        types.InlineKeyboardButton("◈ SUPPORT", callback_data="btn_support")
+    )
+    markup.add(
+        types.InlineKeyboardButton("◈ SYSTEM LOGS", callback_data="btn_updates")
     )
     return markup
 
 
 def get_start_text():
+    total_users = get_total_users()
     return (
-        "<b>💎 QRISHNA • COMMAND CENTER</b>\n"
-        "━━━━━━━━━━━━━━━━━━━━\n"
-        "Welcome to <b>QRISHNA BGMI Portal</b>! 👋\n\n"
-        "⚡ <b>System Status:</b> <code>ONLINE 🟢</code>\n"
-        f"📌 <b>Version:</b> <code>v{BOT_VERSION}</code>\n"
-        "🛡️ <b>Security:</b> <code>100% Anti-Ban Safe</code>\n\n"
-        "<i>Select an option below or use menu commands to continue.</i>"
+        "<b>QRISHNA • VIP COMMAND CENTER</b>\n"
+        "────────────────────────\n"
+        "Welcome to the official <b>BGMI Enterprise Portal</b>.\n\n"
+        "● <b>System Status:</b> <code>ONLINE</code>\n"
+        f"● <b>Build Version:</b> <code>v{BOT_VERSION}</code>\n"
+        f"● <b>Active Users:</b> <code>{total_users}</code>\n"
+        "● <b>Security Core:</b> <code>Anti-Ban Active</code>\n\n"
+        "<i>Select an option from the menu below to proceed.</i>"
     )
 
 
 def get_files_text():
     return (
-        "<b>📥 BGMI DOWNLOAD PORTAL</b>\n"
-        "━━━━━━━━━━━━━━━━━━━━\n"
-        "Access latest files, configs, and optimization packages below:\n\n"
-        "• <b>90 FPS + Extreme Smooth Config</b>\n"
-        "• <b>LagFix & High Performance Pack</b>\n"
-        "• <b>iPad View Configs</b>\n\n"
-        "<i>Tap the button below to open private channel downloads.</i>"
+        "<b>BGMI ENTERPRISE DOWNLOAD PORTAL</b>\n"
+        "────────────────────────\n"
+        "Fetch verified, anti-ban game resources:\n\n"
+        "◆ <b>90 FPS + Ultra Smooth Config</b>\n"
+        "◆ <b>Zero Recoil & Aim Assist Pack</b>\n"
+        "◆ <b>iPad View Ultra Wide Pack</b>\n"
+        "◆ <b>LagFix Performance Engine</b>\n\n"
+        "<i>Tap below to access the secure download channel.</i>"
     )
 
 
 def files_menu():
     markup = types.InlineKeyboardMarkup(row_width=1)
     markup.add(
-        types.InlineKeyboardButton("🚀 OPEN PRIVATE DOWNLOAD CHANNEL", url=CHANNEL_LINK),
-        types.InlineKeyboardButton("⌂ HOME", callback_data="home")
+        types.InlineKeyboardButton("◇ OPEN DOWNLOAD CHANNEL", url=CHANNEL_LINK),
+        types.InlineKeyboardButton("‹ DASHBOARD", callback_data="home")
     )
     return markup
 
 
 def get_updates_text():
+    uptime = int(time.time() - start_time) // 3600
     return (
-        "<b>📢 SYSTEM LOGS & RELEASES</b>\n"
-        "━━━━━━━━━━━━━━━━━━━━\n"
-        f"📌 <b>Current Build:</b> <code>v{BOT_VERSION}</code>\n"
-        "📅 <b>Status:</b> <code>Up to date</code>\n\n"
-        "✨ <b>Changelog:</b>\n"
-        "├ Optimized for latest BGMI updates\n"
-        "├ Enhanced Anti-Ban Protection\n"
-        "└ Fixed Lag & Frame Drops"
+        "<b>SYSTEM LOGS & METRICS</b>\n"
+        "────────────────────────\n"
+        f"● <b>Engine Version:</b> <code>v{BOT_VERSION}</code>\n"
+        f"● <b>Server Uptime:</b> <code>{uptime} Hours</code>\n"
+        "● <b>Latency:</b> <code>24ms (Optimal)</code>\n\n"
+        "<b>Patch Notes:</b>\n"
+        "├ Optimized for latest BGMI Engine update\n"
+        "├ Upgraded Anti-Cheat bypass layer\n"
+        "└ Refined UI typography and navigation"
     )
 
 
 def get_premium_text():
     return (
-        "<b>💎 BGMI VIP ACCESS PASS</b>\n"
-        "━━━━━━━━━━━━━━━━━━━━\n"
-        "Unlock premium files, zero recoil keys, and priority updates:\n\n"
-        "👑 <b>VIP Features:</b>\n"
-        "├ High-Speed Server Downloads\n"
-        "├ 100% Anti-Ban Guarantee\n"
-        "├ Custom Config Settings\n"
-        "└ 24/7 Dedicated Admin Support\n\n"
-        "<i>Contact Admin to upgrade to VIP access.</i>"
+        "<b>VIP ACCESS PASS</b>\n"
+        "────────────────────────\n"
+        "Unlock elite configurations and priority bandwidth:\n\n"
+        "◆ Direct High-Speed CDN Download Links\n"
+        "◆ Exclusive Anti-Ban Security Bypass\n"
+        "◆ Instant License Key Activation\n"
+        "◆ 24/7 Dedicated Support Desk\n\n"
+        "<i>Contact Admin to upgrade your access level.</i>"
     )
 
 
 def premium_menu():
     markup = types.InlineKeyboardMarkup(row_width=1)
     markup.add(
-        types.InlineKeyboardButton("💬 BUY VIP / CONTACT ADMIN", url=ADMIN_CONTACT),
-        types.InlineKeyboardButton("⌂ HOME", callback_data="home")
+        types.InlineKeyboardButton("◇ CONTACT ADMIN", url=ADMIN_CONTACT),
+        types.InlineKeyboardButton("‹ DASHBOARD", callback_data="home")
     )
     return markup
 
@@ -447,114 +397,114 @@ def premium_menu():
 def get_access_text(user_id, first_name):
     name = html.escape(first_name or "User")
     return (
-        "<b>🔐 VERIFICATION & KEY STATUS</b>\n"
-        "━━━━━━━━━━━━━━━━━━━━\n"
-        f"👤 <b>User:</b> {name}\n"
-        f"🆔 <b>User ID:</b> <code>{user_id}</code>\n"
-        "⭐ <b>Plan Level:</b> <code>FREE USER</code>\n"
-        "🔑 <b>License Key:</b> <code>INACTIVE</code>\n\n"
-        "💡 <i>Use <b>/premium</b> to upgrade and activate license keys.</i>"
+        "<b>VIP USER STATUS & LICENSE</b>\n"
+        "────────────────────────\n"
+        f"User Name: <b>{name}</b>\n"
+        f"Account ID: <code>{user_id}</code>\n\n"
+        "<b>LICENSE DETAILS</b>\n"
+        "├ Tier: <code>VIP MEMBER</code>\n"
+        "├ License Key: <code>BGMI-VIP-PRO-PASS</code>\n"
+        "├ Protection: <code>ACTIVE</code>\n"
+        "└ Validity: <code>90 Days (3 Months)</code>\n\n"
+        "<i>Full-speed server downloads and premium resources active.</i>"
     )
 
 
 def get_support_text():
     return (
-        "<b>👨‍💻 PREMIUM SUPPORT DESK</b>\n"
-        "━━━━━━━━━━━━━━━━━━━━\n"
-        "Facing issues with installation or files?\n"
-        "Our team is here to assist you.\n\n"
-        "<i>Tap below to reach Admin support.</i>"
+        "<b>SUPPORT DESK</b>\n"
+        "────────────────────────\n"
+        "Need technical assistance with file extraction or installation?\n\n"
+        "<i>Tap below to establish a direct connection with Support.</i>"
     )
 
 
 def support_menu():
     markup = types.InlineKeyboardMarkup(row_width=1)
     markup.add(
-        types.InlineKeyboardButton("💬 CONTACT ADMIN", url=ADMIN_CONTACT),
-        types.InlineKeyboardButton("⌂ HOME", callback_data="home")
+        types.InlineKeyboardButton("◇ CONTACT SUPPORT", url=ADMIN_CONTACT),
+        types.InlineKeyboardButton("‹ DASHBOARD", callback_data="home")
     )
     return markup
 
 
 def back_menu():
     markup = types.InlineKeyboardMarkup()
-    markup.add(types.InlineKeyboardButton("⌂ HOME", callback_data="home"))
+    markup.add(types.InlineKeyboardButton("‹ DASHBOARD", callback_data="home"))
     return markup
 
 
 # ============================================================
-# INSTALLATION GUIDE CONTENT & MENUS
+# INSTALLATION GUIDE ENGINE
 # ============================================================
 
 def language_menu():
     markup = types.InlineKeyboardMarkup(row_width=2)
     markup.add(
-        types.InlineKeyboardButton("🇬🇧 ENGLISH", callback_data="guide_en"),
-        types.InlineKeyboardButton("🇮🇳 HINGLISH", callback_data="guide_hi")
+        types.InlineKeyboardButton("ENGLISH", callback_data="guide_en"),
+        types.InlineKeyboardButton("HINGLISH", callback_data="guide_hi")
     )
-    markup.add(types.InlineKeyboardButton("⌂ HOME", callback_data="home"))
+    markup.add(types.InlineKeyboardButton("‹ DASHBOARD", callback_data="home"))
     return markup
 
 
 def get_language_text():
     return (
-        "<b>📖 INSTALLATION & SETUP GUIDE</b>\n"
-        "━━━━━━━━━━━━━━━━━━━━\n"
-        "Choose your preferred language to read setup steps:"
+        "<b>INSTALLATION GUIDE ENGINE</b>\n"
+        "────────────────────────\n"
+        "Select your preferred language for setup steps:"
     )
 
 
 ENGLISH_GUIDE = [
-    "<b>STEP 01</b>\n\nDownload the required file from the official channel.",
-    "<b>STEP 02</b>\n\nOpen your downloaded file and follow the provided instructions.",
-    "<b>STEP 03</b>\n\nOpen your File Manager and go to the Download folder.",
-    "<b>STEP 04</b>\n\nLocate the downloaded resource and extract it using ZArchiver.",
-    "<b>STEP 05</b>\n\nCheck extracted files and verify required folders exist.",
-    "<b>STEP 06</b>\n\nCopy and paste files into:\n<code>Android > data > com.pubg.imobile > files</code>",
-    "<b>STEP 07</b>\n\nInstallation complete. Restart phone and launch BGMI."
+    "<b>STEP 01</b>\n\nDownload the required package from our official channel.",
+    "<b>STEP 02</b>\n\nOpen ZArchiver or your system File Manager.",
+    "<b>STEP 03</b>\n\nNavigate to the <code>/Download</code> directory.",
+    "<b>STEP 04</b>\n\nExtract the downloaded <code>.zip</code> or <code>.pak</code> file.",
+    "<b>STEP 05</b>\n\nVerify extracted files and copy required resources.",
+    "<b>STEP 06</b>\n\nPaste files into destination:\n<code>Android > data > com.pubg.imobile > files</code>",
+    "<b>STEP 07</b>\n\nRestart your device and launch BGMI."
 ]
 
-
 HINGLISH_GUIDE = [
-    "<b>STEP 01</b>\n\nOfficial channel se required file download karlo.",
-    "<b>STEP 02</b>\n\nDownloaded file open karo aur instructions follow karo.",
-    "<b>STEP 03</b>\n\nFile Manager kholo aur Download folder me jao.",
-    "<b>STEP 04</b>\n\nFile locate karke ZArchiver se extract karlo.",
-    "<b>STEP 05</b>\n\nExtracted files check karo ki sabhi files properly extracted hain.",
-    "<b>STEP 06</b>\n\nFiles copy karke yaha paste karo:\n<code>Android > data > com.pubg.imobile > files</code>",
-    "<b>STEP 07</b>\n\nSetup complete! Phone restart karke BGMI launch karein."
+    "<b>STEP 01</b>\n\nOfficial channel se file download karein.",
+    "<b>STEP 02</b>\n\nPhone me ZArchiver app open karein.",
+    "<b>STEP 03</b>\n\n<code>/Download</code> folder me jakar file dhoondhein.",
+    "<b>STEP 04</b>\n\nDownloaded file ko extract karein.",
+    "<b>STEP 05</b>\n\nExtracted folder ki files copy kar lein.",
+    "<b>STEP 06</b>\n\nInhe is path par paste karein:\n<code>Android > data > com.pubg.imobile > files</code>",
+    "<b>STEP 07</b>\n\nPhone restart karein aur game enjoy karein!"
 ]
 
 
 def get_guide_page(language, page):
     pages = ENGLISH_GUIDE if language == "en" else HINGLISH_GUIDE
     page = max(0, min(page, len(pages) - 1))
-    return f"<b>📖 INSTALLATION GUIDE ({language.upper()})</b>\n\n" + pages[page]
+    return f"<b>INSTALLATION GUIDE ({language.upper()})</b>\n────────────────────────\n" + pages[page]
 
 
 def guide_menu(language, page):
     pages = ENGLISH_GUIDE if language == "en" else HINGLISH_GUIDE
     markup = types.InlineKeyboardMarkup(row_width=2)
-    
     btns = []
     if page > 0:
         btns.append(types.InlineKeyboardButton("‹ PREVIOUS", callback_data=f"guide_{language}_{page - 1}"))
     if page < len(pages) - 1:
         btns.append(types.InlineKeyboardButton("NEXT ›", callback_data=f"guide_{language}_{page + 1}"))
-    
     if btns:
         markup.add(*btns)
-        
-    markup.add(types.InlineKeyboardButton("⌂ HOME", callback_data="home"))
+    markup.add(types.InlineKeyboardButton("‹ DASHBOARD", callback_data="home"))
     return markup
 
 
 # ============================================================
-# COMMAND HANDLERS (7 MAIN COMMANDS)
+# COMMAND HANDLERS
 # ============================================================
 
 @bot.message_handler(commands=["start"])
 def start(message):
+    if message.from_user:
+        register_user(message.from_user.id, message.from_user.first_name)
     bot.send_message(
         message.chat.id,
         get_start_text(),
@@ -618,7 +568,39 @@ def support_command(message):
 
 
 # ============================================================
-# GROUP MODERATION
+# ADMIN BROADCAST COMMAND
+# ============================================================
+
+@bot.message_handler(commands=["broadcast"])
+def broadcast_command(message):
+    if message.from_user.id not in OWNER_IDS:
+        return
+
+    msg_text = message.text.replace("/broadcast", "").strip()
+    if not msg_text:
+        bot.reply_to(message, "Usage: <code>/broadcast Your Announcement Text</code>")
+        return
+
+    with db_lock:
+        connection = get_connection()
+        cursor = connection.cursor()
+        cursor.execute("SELECT user_id FROM bot_users")
+        users = cursor.fetchall()
+        connection.close()
+
+    success, failed = 0, 0
+    for u in users:
+        try:
+            bot.send_message(u[0], f"<b>PORTAL ANNOUNCEMENT</b>\n────────────────────────\n{msg_text}")
+            success += 1
+        except Exception:
+            failed += 1
+
+    bot.reply_to(message, f"Broadcast Completed!\nSuccess: <code>{success}</code> | Failed: <code>{failed}</code>")
+
+
+# ============================================================
+# GROUP MODERATION HANDLER
 # ============================================================
 
 @bot.message_handler(
@@ -627,15 +609,10 @@ def support_command(message):
         and message.from_user
         and not message.from_user.is_bot
     ),
-    content_types=[
-        "text", "photo", "video", "document",
-        "audio", "voice", "animation"
-    ]
+    content_types=["text", "photo", "video", "document", "audio", "voice", "animation"]
 )
 def moderation_handler(message):
-
     user = message.from_user
-
     if not user or user.is_bot:
         return
 
@@ -645,11 +622,7 @@ def moderation_handler(message):
         return
 
     text = message.text or message.caption or ""
-
-    if not text or text.startswith("/"):
-        return
-
-    if not contains_bad_language(text):
+    if not text or text.startswith("/") or not contains_bad_language(text):
         return
 
     try:
@@ -664,14 +637,7 @@ def moderation_handler(message):
             bot.ban_chat_member(message.chat.id, user.id)
             bot.send_message(message.chat.id, banned_text(user))
         except Exception:
-            try:
-                name = html.escape(user.first_name or "User")
-                bot.send_message(
-                    message.chat.id,
-                    f"<b>🚫 BAN ERROR</b>\n\nUnable to ban <b>{name}</b>."
-                )
-            except Exception:
-                pass
+            pass
         return
 
     try:
@@ -707,6 +673,20 @@ def cb_files(call):
             call.message.chat.id,
             call.message.message_id,
             reply_markup=files_menu()
+        )
+    except Exception:
+        pass
+
+
+@bot.callback_query_handler(func=lambda call: call.data == "btn_updates")
+def cb_updates(call):
+    try:
+        bot.answer_callback_query(call.id)
+        bot.edit_message_text(
+            get_updates_text(),
+            call.message.chat.id,
+            call.message.message_id,
+            reply_markup=back_menu()
         )
     except Exception:
         pass
@@ -823,31 +803,31 @@ def guide_hinglish_pages(call):
 
 
 # ============================================================
-# COMMAND MENU SETTER
+# AUTOMATIC COMMAND MENU SETTER
 # ============================================================
 
 def set_commands():
     bot.set_my_commands(
         [
             types.BotCommand("start", "Launch Command Center"),
-            types.BotCommand("files", "Access Download Portal & Configs"),
-            types.BotCommand("updates", "View System Logs & Releases"),
-            types.BotCommand("tutorial", "Installation & Setup Guide"),
-            types.BotCommand("premium", "Upgrade to VIP Access"),
+            types.BotCommand("files", "Access Download Portal"),
+            types.BotCommand("updates", "View System Logs"),
+            types.BotCommand("tutorial", "Installation Engine"),
+            types.BotCommand("premium", "VIP Access Pass"),
             types.BotCommand("access", "Verification & Key Status"),
-            types.BotCommand("support", "Contact Premium Support Desk")
+            types.BotCommand("support", "Contact Support Desk")
         ]
     )
 
 
 # ============================================================
-# START BOT
+# BOT BOOTSTRAP
 # ============================================================
 
 if __name__ == "__main__":
 
     print("========================================")
-    print("        QRISHNA • PREMIUM BOT")
+    print("      QRISHNA VIP ENTERPRISE BOT")
     print("========================================")
 
     init_database()
@@ -858,7 +838,7 @@ if __name__ == "__main__":
         daemon=True
     ).start()
 
-    print("QRISHNA is ONLINE.")
+    print("QRISHNA VIP ENGINE is ONLINE.")
 
     bot.infinity_polling(
         timeout=60,
