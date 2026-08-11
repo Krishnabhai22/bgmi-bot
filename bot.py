@@ -5,15 +5,18 @@ from telebot import types
 from flask import Flask
 
 # ============================================================
-# QRIISHNA BOT — PREMIUM TELEGRAM INTERFACE
+# QRIISHNA
+# Premium Telegram Interface
 # ============================================================
 
 TOKEN = os.environ.get("BOT_TOKEN")
 
-# Your private channel / latest resource link
+# Private resource / channel link
 CHANNEL_LINK = "https://t.me/+GHjJmfql0o02YWZl"
 
 BOT_NAME = "QRIISHNA"
+BOT_VERSION = "1.0"
+
 
 # ============================================================
 # FLASK SERVER
@@ -24,7 +27,7 @@ app = Flask(__name__)
 
 @app.route("/")
 def home():
-    return "QRIISHNA is online."
+    return "QRIISHNA • ONLINE"
 
 
 def run_flask():
@@ -40,6 +43,11 @@ def run_flask():
 # TELEGRAM BOT
 # ============================================================
 
+if not TOKEN:
+    raise RuntimeError(
+        "BOT_TOKEN is not configured in environment variables."
+    )
+
 bot = telebot.TeleBot(
     TOKEN,
     parse_mode="HTML"
@@ -47,17 +55,16 @@ bot = telebot.TeleBot(
 
 
 # ============================================================
-# MAIN MENU
+# MAIN / WELCOME MENU
+#
+# IMPORTANT:
+# No access button is shown here.
+# User must manually use /hacks for access.
 # ============================================================
 
-def main_menu():
+def welcome_menu():
 
     markup = types.InlineKeyboardMarkup(row_width=2)
-
-    latest_button = types.InlineKeyboardButton(
-        "▣  LATEST RELEASE",
-        url=CHANNEL_LINK
-    )
 
     help_button = types.InlineKeyboardButton(
         "⌕  HELP",
@@ -69,175 +76,231 @@ def main_menu():
         callback_data="about"
     )
 
-    markup.add(latest_button)
-    markup.add(help_button, about_button)
+    markup.add(
+        help_button,
+        about_button
+    )
 
     return markup
 
 
 # ============================================================
-# START
+# ACCESS MENU
+#
+# This menu appears ONLY after /hacks
+# ============================================================
+
+def access_menu():
+
+    markup = types.InlineKeyboardMarkup(row_width=1)
+
+    access_button = types.InlineKeyboardButton(
+        "▣  OPEN PRIVATE ACCESS",
+        url=CHANNEL_LINK
+    )
+
+    back_button = types.InlineKeyboardButton(
+        "‹  RETURN TO QRIISHNA",
+        callback_data="home"
+    )
+
+    markup.add(access_button)
+    markup.add(back_button)
+
+    return markup
+
+
+# ============================================================
+# BACK BUTTON
+# ============================================================
+
+def back_menu():
+
+    markup = types.InlineKeyboardMarkup()
+
+    back_button = types.InlineKeyboardButton(
+        "‹  RETURN TO QRIISHNA",
+        callback_data="home"
+    )
+
+    markup.add(back_button)
+
+    return markup
+
+
+# ============================================================
+# /START
 # ============================================================
 
 @bot.message_handler(commands=["start"])
 def start(message):
 
-    user_name = message.from_user.first_name or "there"
+    first_name = message.from_user.first_name or "there"
 
     text = (
-        f"<b>{BOT_NAME}</b>\n\n"
-        f"Hello, <b>{user_name}</b>.\n\n"
-        "Your access panel is ready.\n\n"
-        "Select an option below to continue."
+        "<b>QRIISHNA</b>\n\n"
+
+        f"Welcome, <b>{first_name}</b>.\n\n"
+
+        "It's a pleasure to have you here.\n\n"
+
+        "You've reached the official interface. "
+        "Take a moment to explore the options below "
+        "and discover how everything works.\n\n"
+
+        "<i>Your journey starts here.</i>"
     )
 
     bot.send_message(
         message.chat.id,
         text,
-        reply_markup=main_menu()
+        reply_markup=welcome_menu()
     )
 
 
 # ============================================================
-# HELP
+# /HACKS
+#
+# Access is intentionally gated behind this command.
+# ============================================================
+
+@bot.message_handler(commands=["hacks"])
+def hacks(message):
+
+    text = (
+        "<b>QRIISHNA ACCESS</b>\n\n"
+
+        "Access request received.\n\n"
+
+        "The private resource area is now available "
+        "for you to open.\n\n"
+
+        "<i>Use the secure access point below to continue.</i>"
+    )
+
+    bot.send_message(
+        message.chat.id,
+        text,
+        reply_markup=access_menu()
+    )
+
+
+# ============================================================
+# /HELP
 # ============================================================
 
 @bot.message_handler(commands=["help"])
 def help_command(message):
 
     text = (
-        "<b>HELP</b>\n\n"
-        "Use the options below to navigate the bot.\n\n"
+        "<b>QRIISHNA • HELP</b>\n\n"
+
+        "Everything you need is available through "
+        "the commands below.\n\n"
+
         "<b>/start</b>\n"
-        "Open the main interface.\n\n"
-        "<b>/file</b>\n"
-        "Open the latest available release.\n\n"
+        "Return to the main welcome interface.\n\n"
+
+        "<b>/hacks</b>\n"
+        "Open the private access panel.\n\n"
+
         "<b>/about</b>\n"
-        "View information about this service."
+        "Learn more about QRIISHNA.\n\n"
+
+        "<i>Choose a command whenever you're ready.</i>"
     )
-
-    markup = types.InlineKeyboardMarkup(row_width=2)
-
-    latest_button = types.InlineKeyboardButton(
-        "▣  LATEST RELEASE",
-        url=CHANNEL_LINK
-    )
-
-    back_button = types.InlineKeyboardButton(
-        "‹  BACK",
-        callback_data="home"
-    )
-
-    markup.add(latest_button)
-    markup.add(back_button)
 
     bot.send_message(
         message.chat.id,
         text,
-        reply_markup=markup
+        reply_markup=back_menu()
     )
 
 
 # ============================================================
-# FILE
-# ============================================================
-
-@bot.message_handler(commands=["file"])
-def file_command(message):
-
-    text = (
-        "<b>LATEST RELEASE</b>\n\n"
-        "The latest release is available through "
-        "the secure access point below.\n\n"
-        "Tap the button to continue."
-    )
-
-    markup = types.InlineKeyboardMarkup()
-
-    latest_button = types.InlineKeyboardButton(
-        "▣  OPEN LATEST RELEASE",
-        url=CHANNEL_LINK
-    )
-
-    back_button = types.InlineKeyboardButton(
-        "‹  BACK",
-        callback_data="home"
-    )
-
-    markup.add(latest_button)
-    markup.add(back_button)
-
-    bot.send_message(
-        message.chat.id,
-        text,
-        reply_markup=markup
-    )
-
-
-# ============================================================
-# ABOUT
+# /ABOUT
 # ============================================================
 
 @bot.message_handler(commands=["about"])
 def about_command(message):
 
     text = (
-        f"<b>{BOT_NAME}</b>\n\n"
-        "A private access interface designed to provide "
-        "a clean and direct way to reach the latest available "
-        "resources.\n\n"
-        "<b>Version</b>  •  1.0\n"
-        "<b>Status</b>   •  Online"
+        "<b>QRIISHNA</b>\n\n"
+
+        "A dedicated Telegram interface designed "
+        "around a simple principle — keep the experience "
+        "clean, direct and easy to navigate.\n\n"
+
+        "<b>INTERFACE</b>\n"
+        "Premium access experience\n\n"
+
+        "<b>VERSION</b>\n"
+        f"{BOT_VERSION}\n\n"
+
+        "<b>STATUS</b>\n"
+        "Online\n\n"
+
+        "<i>Thank you for being here.</i>"
     )
-
-    markup = types.InlineKeyboardMarkup()
-
-    back_button = types.InlineKeyboardButton(
-        "‹  BACK",
-        callback_data="home"
-    )
-
-    markup.add(back_button)
 
     bot.send_message(
         message.chat.id,
         text,
-        reply_markup=markup
+        reply_markup=back_menu()
     )
 
 
 # ============================================================
-# HELP BUTTON
+# /FILE
+#
+# Does NOT bypass the /hacks access flow.
 # ============================================================
 
-@bot.callback_query_handler(func=lambda call: call.data == "help")
+@bot.message_handler(commands=["file"])
+def file_command(message):
+
+    text = (
+        "<b>PRIVATE ACCESS</b>\n\n"
+
+        "This resource is available through "
+        "the QRIISHNA access panel.\n\n"
+
+        "Use <b>/hacks</b> to continue."
+    )
+
+    bot.send_message(
+        message.chat.id,
+        text,
+        reply_markup=back_menu()
+    )
+
+
+# ============================================================
+# HELP CALLBACK
+# ============================================================
+
+@bot.callback_query_handler(
+    func=lambda call: call.data == "help"
+)
 def help_callback(call):
 
     text = (
-        "<b>HELP</b>\n\n"
-        "Use the options below to navigate the bot.\n\n"
+        "<b>QRIISHNA • HELP</b>\n\n"
+
+        "Everything you need is available through "
+        "the commands below.\n\n"
+
         "<b>/start</b>\n"
-        "Open the main interface.\n\n"
-        "<b>/file</b>\n"
-        "Open the latest available release.\n\n"
+        "Return to the main welcome interface.\n\n"
+
+        "<b>/hacks</b>\n"
+        "Open the private access panel.\n\n"
+
         "<b>/about</b>\n"
-        "View information about this service."
+        "Learn more about QRIISHNA.\n\n"
+
+        "<i>Choose a command whenever you're ready.</i>"
     )
-
-    markup = types.InlineKeyboardMarkup(row_width=2)
-
-    latest_button = types.InlineKeyboardButton(
-        "▣  LATEST RELEASE",
-        url=CHANNEL_LINK
-    )
-
-    back_button = types.InlineKeyboardButton(
-        "‹  BACK",
-        callback_data="home"
-    )
-
-    markup.add(latest_button)
-    markup.add(back_button)
 
     bot.answer_callback_query(call.id)
 
@@ -245,34 +308,37 @@ def help_callback(call):
         text,
         call.message.chat.id,
         call.message.message_id,
-        reply_markup=markup
+        reply_markup=back_menu()
     )
 
 
 # ============================================================
-# ABOUT BUTTON
+# ABOUT CALLBACK
 # ============================================================
 
-@bot.callback_query_handler(func=lambda call: call.data == "about")
+@bot.callback_query_handler(
+    func=lambda call: call.data == "about"
+)
 def about_callback(call):
 
     text = (
-        f"<b>{BOT_NAME}</b>\n\n"
-        "A private access interface designed to provide "
-        "a clean and direct way to reach the latest available "
-        "resources.\n\n"
-        "<b>Version</b>  •  1.0\n"
-        "<b>Status</b>   •  Online"
+        "<b>QRIISHNA</b>\n\n"
+
+        "A dedicated Telegram interface designed "
+        "around a simple principle — keep the experience "
+        "clean, direct and easy to navigate.\n\n"
+
+        "<b>INTERFACE</b>\n"
+        "Premium access experience\n\n"
+
+        "<b>VERSION</b>\n"
+        f"{BOT_VERSION}\n\n"
+
+        "<b>STATUS</b>\n"
+        "Online\n\n"
+
+        "<i>Thank you for being here.</i>"
     )
-
-    markup = types.InlineKeyboardMarkup()
-
-    back_button = types.InlineKeyboardButton(
-        "‹  BACK",
-        callback_data="home"
-    )
-
-    markup.add(back_button)
 
     bot.answer_callback_query(call.id)
 
@@ -280,24 +346,33 @@ def about_callback(call):
         text,
         call.message.chat.id,
         call.message.message_id,
-        reply_markup=markup
+        reply_markup=back_menu()
     )
 
 
 # ============================================================
-# HOME BUTTON
+# HOME CALLBACK
 # ============================================================
 
-@bot.callback_query_handler(func=lambda call: call.data == "home")
+@bot.callback_query_handler(
+    func=lambda call: call.data == "home"
+)
 def home_callback(call):
 
-    user_name = call.from_user.first_name or "there"
+    first_name = call.from_user.first_name or "there"
 
     text = (
-        f"<b>{BOT_NAME}</b>\n\n"
-        f"Hello, <b>{user_name}</b>.\n\n"
-        "Your access panel is ready.\n\n"
-        "Select an option below to continue."
+        "<b>QRIISHNA</b>\n\n"
+
+        f"Welcome, <b>{first_name}</b>.\n\n"
+
+        "It's a pleasure to have you here.\n\n"
+
+        "You've reached the official interface. "
+        "Take a moment to explore the options below "
+        "and discover how everything works.\n\n"
+
+        "<i>Your journey starts here.</i>"
     )
 
     bot.answer_callback_query(call.id)
@@ -306,7 +381,7 @@ def home_callback(call):
         text,
         call.message.chat.id,
         call.message.message_id,
-        reply_markup=main_menu()
+        reply_markup=welcome_menu()
     )
 
 
@@ -318,15 +393,17 @@ def home_callback(call):
 def unknown_message(message):
 
     text = (
-        f"<b>{BOT_NAME}</b>\n\n"
-        "I couldn't recognize that request.\n\n"
-        "Use <b>/help</b> to see the available commands."
+        "<b>QRIISHNA</b>\n\n"
+
+        "I couldn't understand that request.\n\n"
+
+        "Use <b>/help</b> to view the available commands."
     )
 
     bot.send_message(
         message.chat.id,
         text,
-        reply_markup=main_menu()
+        reply_markup=welcome_menu()
     )
 
 
@@ -337,53 +414,61 @@ def unknown_message(message):
 def set_commands():
 
     commands = [
+
         types.BotCommand(
             "start",
-            "Open main interface"
+            "Open QRIISHNA"
         ),
+
         types.BotCommand(
-            "file",
-            "Open latest release"
+            "hacks",
+            "Open private access"
         ),
+
         types.BotCommand(
             "help",
             "View help"
         ),
+
         types.BotCommand(
             "about",
             "About QRIISHNA"
+        ),
+
+        types.BotCommand(
+            "file",
+            "Resource access information"
         )
+
     ]
 
     bot.set_my_commands(commands)
 
 
 # ============================================================
-# START APPLICATION
+# APPLICATION START
 # ============================================================
 
 if __name__ == "__main__":
 
-    if not TOKEN:
-        raise RuntimeError(
-            "BOT_TOKEN environment variable is missing."
-        )
+    print("----------------------------------------")
+    print("        QRIISHNA INITIALIZING")
+    print("----------------------------------------")
 
-    # Set Telegram command menu
     set_commands()
 
-    # Start Flask server for Render
+    # Render web server
     threading.Thread(
         target=run_flask,
         daemon=True
     ).start()
 
-    print("======================================")
-    print("       QRIISHNA BOT IS ONLINE")
-    print("======================================")
+    print("Web server        : ONLINE")
+    print("Telegram interface: ONLINE")
+    print("Bot               : QRIISHNA")
+    print("----------------------------------------")
 
-    # Start Telegram bot
     bot.infinity_polling(
         timeout=60,
         long_polling_timeout=60
-    )
+)
