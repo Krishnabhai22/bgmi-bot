@@ -44,7 +44,7 @@ if not TOKEN:
 
 bot = telebot.TeleBot(
     TOKEN,
-    parse_mode=None  # Explicit per-message mode setting
+    parse_mode=None
 )
 
 
@@ -310,7 +310,7 @@ def warning_text(user, number):
         "────────────────────────\n"
         f"Target User: <b>{name}</b>\n"
         "Infraction: Abusive / Inappropriate Language\n"
-        f"Warning Level: <code>{number} / 3</code>\n\n"
+        f"Warning Level: <pre><code>{number} / 3</code></pre>\n\n"
         "<i>Please maintain standard decorum in the portal.</i>"
     )
 
@@ -352,10 +352,10 @@ def get_start_text():
         "<b>QRISHNA • VIP COMMAND CENTER</b>\n"
         "────────────────────────\n"
         "Welcome to the official <b>BGMI Enterprise Portal</b>.\n\n"
-        "● <b>System Status:</b> <code>ONLINE</code>\n"
-        f"● <b>Build Version:</b> <code>v{BOT_VERSION}</code>\n"
-        f"● <b>Active Users:</b> <code>{total_users}</code>\n"
-        "● <b>Security Core:</b> <code>Anti-Ban Active</code>\n\n"
+        "● <b>System Status:</b> <pre><code>ONLINE</code></pre>\n"
+        f"● <b>Build Version:</b> <pre><code>v{BOT_VERSION}</code></pre>\n"
+        f"● <b>Active Users:</b> <pre><code>{total_users}</code></pre>\n"
+        "● <b>Security Core:</b> <pre><code>Anti-Ban Active</code></pre>\n\n"
         "<i>Select an option from the menu below to proceed.</i>"
     )
 
@@ -387,9 +387,9 @@ def get_updates_text():
     return (
         "<b>SYSTEM LOGS & METRICS</b>\n"
         "────────────────────────\n"
-        f"● <b>Engine Version:</b> <code>v{BOT_VERSION}</code>\n"
-        f"● <b>Server Uptime:</b> <code>{uptime} Hours</code>\n"
-        "● <b>Latency:</b> <code>24ms (Optimal)</code>\n\n"
+        f"● <b>Engine Version:</b> <pre><code>v{BOT_VERSION}</code></pre>\n"
+        f"● <b>Server Uptime:</b> <pre><code>{uptime} Hours</code></pre>\n"
+        "● <b>Latency:</b> <pre><code>24ms (Optimal)</code></pre>\n\n"
         "<b>Patch Notes:</b>\n"
         "├ Optimized for latest BGMI Engine update\n"
         "├ Upgraded Anti-Cheat bypass layer\n"
@@ -425,12 +425,12 @@ def get_access_text(user_id, first_name):
         "<b>VIP USER STATUS & LICENSE</b>\n"
         "────────────────────────\n"
         f"User Name: <b>{name}</b>\n"
-        f"Account ID: <code>{user_id}</code>\n\n"
+        f"Account ID:\n<pre><code>{user_id}</code></pre>\n"
         "<b>LICENSE DETAILS</b>\n"
-        "├ Tier: <code>VIP MEMBER</code>\n"
-        "├ License Key: <code>BGMI-VIP-PRO-PASS</code>\n"
-        "├ Protection: <code>ACTIVE</code>\n"
-        "└ Validity: <code>90 Days (3 Months)</code>\n\n"
+        "├ Tier: <b>VIP MEMBER</b>\n"
+        "├ License Key:\n<pre><code>BGMI-VIP-PRO-PASS</code></pre>\n"
+        "├ Protection: <b>ACTIVE</b>\n"
+        "└ Validity: <b>90 Days (3 Months)</b>\n\n"
         "<i>Full-speed server downloads and premium resources active.</i>"
     )
 
@@ -484,20 +484,20 @@ def get_language_text():
 ENGLISH_GUIDE = [
     "<b>STEP 01</b>\n\nDownload the required package from our official channel.",
     "<b>STEP 02</b>\n\nOpen ZArchiver or your system File Manager.",
-    "<b>STEP 03</b>\n\nNavigate to the <code>/Download</code> directory.",
+    "<b>STEP 03</b>\n\nNavigate to the <pre><code>/Download</code></pre> directory.",
     "<b>STEP 04</b>\n\nExtract the downloaded <code>.zip</code> or <code>.pak</code> file.",
     "<b>STEP 05</b>\n\nVerify extracted files and copy required resources.",
-    "<b>STEP 06</b>\n\nPaste files into destination:\n<code>Android > data > com.pubg.imobile > files</code>",
+    "<b>STEP 06</b>\n\nPaste files into destination:\n<pre><code>Android/data/com.pubg.imobile/files</code></pre>",
     "<b>STEP 07</b>\n\nRestart your device and launch BGMI."
 ]
 
 HINGLISH_GUIDE = [
     "<b>STEP 01</b>\n\nOfficial channel se file download karein.",
     "<b>STEP 02</b>\n\nPhone me ZArchiver app open karein.",
-    "<b>STEP 03</b>\n\n<code>/Download</code> folder me jakar file dhoondhein.",
+    "<b>STEP 03</b>\n\n<pre><code>/Download</code></pre> folder me jakar file dhoondhein.",
     "<b>STEP 04</b>\n\nDownloaded file ko extract karein.",
     "<b>STEP 05</b>\n\nExtracted folder ki files copy kar lein.",
-    "<b>STEP 06</b>\n\nInhe is path par paste karein:\n<code>Android > data > com.pubg.imobile > files</code>",
+    "<b>STEP 06</b>\n\nInhe is path par paste karein:\n<pre><code>Android/data/com.pubg.imobile/files</code></pre>",
     "<b>STEP 07</b>\n\nPhone restart karein aur game enjoy karein!"
 ]
 
