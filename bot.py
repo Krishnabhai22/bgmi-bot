@@ -19,7 +19,7 @@ from flask import Flask
 TOKEN = os.environ.get("BOT_TOKEN")
 
 BOT_NAME = "QRISHNA VIP"
-BOT_VERSION = "6.0 SECURE PRO"
+BOT_VERSION = "7.5 ENTERPRISE PRO"
 
 CHANNEL_LINK = "https://t.me/+GHjJmfql0o02YWZl"
 ADMIN_CONTACT = "https://t.me/qrishna"
@@ -147,7 +147,6 @@ def init_database():
             )
         """)
 
-        # VIP License Keys Table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS vip_keys (
                 key_code TEXT PRIMARY KEY,
@@ -159,7 +158,6 @@ def init_database():
             )
         """)
 
-        # User VIP Subscriptions Table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS user_subscriptions (
                 user_id INTEGER PRIMARY KEY,
@@ -168,7 +166,6 @@ def init_database():
             )
         """)
 
-        # Payment Transactions Table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS transactions (
                 utr TEXT PRIMARY KEY,
@@ -840,7 +837,52 @@ def support_command(message):
 
 
 # ------------------------------------------------------------
-# ADMIN KEY COMMANDS
+# USER ID DETAILS COMMAND (MANUAL UNLISTED COMMAND)
+# ------------------------------------------------------------
+
+@bot.message_handler(commands=["userid", "id", "myid"])
+def userid_command(message):
+    user = message.from_user
+    if not user:
+        return
+
+    full_name = html.escape(user.first_name or "")
+    if user.last_name:
+        full_name += f" {html.escape(user.last_name)}"
+
+    username = f"@{user.username}" if user.username else "Not Set"
+    user_id = user.id
+
+    sub = get_user_subscription(user_id)
+    if sub:
+        account_tier = "<b>ACTIVE VIP MEMBER</b>"
+        expiry_info = f"\n● <b>VIP Expiry Date:</b> {sub['expiry']}"
+    else:
+        account_tier = "<b>FREE MEMBER</b>"
+        expiry_info = ""
+
+    id_info_text = (
+        "<b>🪪 TELEGRAM ACCOUNT PROFILE DETAILS</b>\n"
+        "────────────────────────────────────────\n"
+        f"● <b>Full Name:</b> {full_name}\n"
+        f"● <b>Username:</b> {username}\n"
+        f"● <b>Telegram User ID:</b> <code>{user_id}</code>\n"
+        f"● <b>Account Status:</b> {account_tier}"
+        f"{expiry_info}\n"
+        "────────────────────────────────────────\n"
+        "<i>Tap the User ID code above to copy it instantly.</i>"
+    )
+
+    send_auto_delete_message(
+        message.chat.id,
+        id_info_text,
+        reply_markup=back_menu(),
+        delay=60
+    )
+
+
+# ------------------------------------------------------------
+# FULL ADMIN SECRET COMMANDS (GENKEY, REDEEM, RESETVIP, BROADCAST, STATS, REVOKE)
 # ------------------------------------------------------------
 
 @bot.message_handler(commands=["genkey"])
@@ -862,6 +904,111 @@ def genkey_command(message):
         "<i>Send this key to user for /redeem.</i>"
     )
     bot.reply_to(message, msg, parse_mode="HTML")
+
+
+@bot.message_handler(commands=["resetvip"])
+def resetvip_command(message):
+    if message.from_user.id not in OWNER_IDS:
+        return
+
+    parts = message.text.strip().split()
+    target_id = message.from_user.id
+
+    if len(parts) > 1 and parts[1].isdigit():
+        target_id = int(parts[1])
+
+    with db_lock:
+        connection = get_connection()
+        cursor = connection.cursor()
+        cursor.execute("DELETE FROM user_subscriptions WHERE user_id = ?", (target_id,))
+        connection.commit()
+        connection.close()
+
+    send_auto_delete_message(
+        message.chat.id,
+        f"<b>✅ VIP STATUS RESET SUCCESS</b>\n────────────────────────\nUser ID <code>{target_id}</code> is now reset to <b>FREE MEMBER</b>.",
+        delay=30
+    )
+
+
+@bot.message_handler(commands=["broadcast"])
+def broadcast_command(message):
+    if message.from_user.id not in OWNER_IDS:
+        return
+
+    text_to_send = message.text.replace("/broadcast", "").strip()
+    if not text_to_send:
+        bot.reply_to(message, "Usage: <code>/broadcast Your Announcement Text</code>", parse_mode="HTML")
+        return
+
+    with db_lock:
+        connection = get_connection()
+        cursor = connection.cursor()
+        cursor.execute("SELECT user_id FROM bot_users")
+        users = cursor.fetchall()
+        connection.close()
+
+    success, failed = 0, 0
+    for u in users:
+        try:
+            bot.send_message(u[0], f"<b>📢 SYSTEM ANNOUNCEMENT</b>\n────────────────────────\n{text_to_send}", parse_mode="HTML")
+            success += 1
+            time.sleep(0.05)
+        except Exception:
+            failed += 1
+
+    bot.reply_to(message, f"<b>📢 Broadcast Complete!</b>\n✅ Delivered: {success}\n❌ Failed (Blocked): {failed}", parse_mode="HTML")
+
+
+@bot.message_handler(commands=["stats"])
+def stats_command(message):
+    if message.from_user.id not in OWNER_IDS:
+        return
+
+    with db_lock:
+        connection = get_connection()
+        cursor = connection.cursor()
+        cursor.execute("SELECT COUNT(*) FROM bot_users")
+        total_users = cursor.fetchone()[0]
+        cursor.execute("SELECT COUNT(*) FROM user_subscriptions WHERE datetime(expiry_date) > datetime('now')")
+        active_vips = cursor.fetchone()[0]
+        cursor.execute("SELECT COUNT(*) FROM vip_keys")
+        total_keys = cursor.fetchone()[0]
+        connection.close()
+
+    msg = (
+        "<b>📊 QRISHNA VIP BUSINESS METRICS</b>\n"
+        "────────────────────────\n"
+        f"● <b>Total Registered Users:</b> {total_users}\n"
+        f"● <b>Active VIP Members:</b> {active_vips}\n"
+        f"● <b>Total VIP Keys Created:</b> {total_keys}\n"
+    )
+    bot.reply_to(message, msg, parse_mode="HTML")
+
+
+@bot.message_handler(commands=["revoke"])
+def revoke_key_command(message):
+    if message.from_user.id not in OWNER_IDS:
+        return
+
+    parts = message.text.strip().split()
+    if len(parts) < 2:
+        bot.reply_to(message, "Usage: <code>/revoke KEY_CODE</code>", parse_mode="HTML")
+        return
+
+    key_code = parts[1].strip()
+    with db_lock:
+        connection = get_connection()
+        cursor = connection.cursor()
+        cursor.execute("UPDATE vip_keys SET is_used = 1 WHERE key_code = ?", (key_code,))
+        affected = cursor.rowcount
+        connection.commit()
+        connection.close()
+
+    if affected > 0:
+        bot.reply_to(message, f"<b>✅ Key <code>{key_code}</code> Has Been Revoked/Disabled!</b>", parse_mode="HTML")
+    else:
+        bot.reply_to(message, "Key not found.", parse_mode="HTML")
 
 
 @bot.message_handler(commands=["redeem"])
@@ -1055,11 +1202,9 @@ def admin_approve_callback(call):
     target_user_id = int(parts[1])
     utr = parts[2]
 
-    # Generate key and redeem for user
     auto_key = generate_key_code(90)
     success, expiry_str = redeem_vip_key(target_user_id, auto_key)
 
-    # Edit Admin Message
     bot.edit_message_text(
         f"<b>✅ PAYMENT APPROVED</b>\n────────────────────────\nUser ID: <code>{target_user_id}</code>\nUTR: <code>{utr}</code>\nGenerated Key: <code>{auto_key}</code>",
         call.message.chat.id,
@@ -1067,7 +1212,6 @@ def admin_approve_callback(call):
         parse_mode="HTML"
     )
 
-    # Send Private Key directly to User's DM
     try:
         user_msg = (
             "<b>🎉 PAYMENT VERIFIED & APPROVED!</b>\n"
@@ -1124,7 +1268,6 @@ def handle_all_messages(message):
     user = message.from_user
     user_id = user.id
 
-    # Check if user is submitting UTR
     if user_id in user_utr_states:
         pack_code = user_utr_states[user_id]
         del user_utr_states[user_id]
@@ -1154,14 +1297,12 @@ def handle_all_messages(message):
             connection.commit()
             connection.close()
 
-        # Send Pending confirmation to User
         send_auto_delete_message(
             message.chat.id,
             "<b>⏳ PAYMENT SUBMITTED FOR VERIFICATION</b>\n────────────────────────────────────────\nYour UTR has been sent to Admin for review.\nYou will receive your VIP Key in private DM once approved.",
             delay=60
         )
 
-        # Send Approval Alert directly to Admin DM (Permanent, NO Auto-Delete)
         first_name = html.escape(user.first_name or "User")
         admin_alert = (
             "<b>⚡ NEW PAYMENT PENDING APPROVAL</b>\n"
@@ -1187,7 +1328,6 @@ def handle_all_messages(message):
                 print(f"Failed to send alert to Admin DM: {admin_err}")
         return
 
-    # Group Moderation
     if message.chat.type in ["group", "supergroup"]:
         send_first_time_welcome(message)
 
@@ -1416,7 +1556,6 @@ if __name__ == "__main__":
     init_database()
     set_commands()
 
-    # Flask keep-alive server
     threading.Thread(
         target=run_flask,
         daemon=True
@@ -1424,14 +1563,12 @@ if __name__ == "__main__":
 
     print("QRISHNA VIP ENGINE is ONLINE.")
 
-    # Forcefully delete webhook before starting polling
     try:
         bot.remove_webhook()
         time.sleep(1)
     except Exception:
         pass
 
-    # Single retry loop for polling
     while True:
         try:
             bot.polling(non_stop=True, interval=1, timeout=30, skip_pending=True)
