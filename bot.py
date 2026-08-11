@@ -4,336 +4,385 @@ import telebot
 from telebot import types
 from flask import Flask
 
-# =========================
-# CONFIGURATION
-# =========================
+# ============================================================
+# QRIISHNA BOT — PREMIUM TELEGRAM INTERFACE
+# ============================================================
 
 TOKEN = os.environ.get("BOT_TOKEN")
 
+# Your private channel / latest resource link
 CHANNEL_LINK = "https://t.me/+GHjJmfql0o02YWZl"
 
-BOT_NAME = "qriishabot"
+BOT_NAME = "QRIISHNA"
 
-# =========================
-# FLASK APP
-# =========================
+# ============================================================
+# FLASK SERVER
+# ============================================================
 
 app = Flask(__name__)
 
+
 @app.route("/")
 def home():
-    return "Bot is Alive! ✅"
+    return "QRIISHNA is online."
 
 
 def run_flask():
     port = int(os.environ.get("PORT", 8080))
-    app.run(host="0.0.0.0", port=port)
+
+    app.run(
+        host="0.0.0.0",
+        port=port
+    )
 
 
-# =========================
+# ============================================================
 # TELEGRAM BOT
-# =========================
+# ============================================================
 
-bot = telebot.TeleBot(TOKEN, parse_mode="Markdown")
+bot = telebot.TeleBot(
+    TOKEN,
+    parse_mode="HTML"
+)
 
 
-# =========================
+# ============================================================
 # MAIN MENU
-# =========================
+# ============================================================
 
 def main_menu():
+
     markup = types.InlineKeyboardMarkup(row_width=2)
 
-    latest_file = types.InlineKeyboardButton(
-        "📁 Latest File",
+    latest_button = types.InlineKeyboardButton(
+        "▣  LATEST RELEASE",
         url=CHANNEL_LINK
     )
 
     help_button = types.InlineKeyboardButton(
-        "❓ Help",
+        "⌕  HELP",
         callback_data="help"
     )
 
     about_button = types.InlineKeyboardButton(
-        "ℹ️ About",
+        "ⓘ  ABOUT",
         callback_data="about"
     )
 
-    markup.add(latest_file)
+    markup.add(latest_button)
     markup.add(help_button, about_button)
 
     return markup
 
 
-# =========================
-# START COMMAND
-# =========================
+# ============================================================
+# START
+# ============================================================
 
 @bot.message_handler(commands=["start"])
 def start(message):
 
     user_name = message.from_user.first_name or "there"
 
-    welcome_text = (
-        f"👋 *Welcome to {BOT_NAME}*\n\n"
-        f"Hello *{user_name}*!\n\n"
-        "You're now connected to our official bot.\n\n"
-        "📌 Use the buttons below to access available "
-        "resources or learn more about the bot.\n\n"
-        "🔒 *Simple • Fast • Secure*"
+    text = (
+        f"<b>{BOT_NAME}</b>\n\n"
+        f"Hello, <b>{user_name}</b>.\n\n"
+        "Your access panel is ready.\n\n"
+        "Select an option below to continue."
     )
 
     bot.send_message(
         message.chat.id,
-        welcome_text,
+        text,
         reply_markup=main_menu()
     )
 
 
-# =========================
-# HELP COMMAND
-# =========================
+# ============================================================
+# HELP
+# ============================================================
 
 @bot.message_handler(commands=["help"])
 def help_command(message):
 
-    help_text = (
-        "❓ *Help & Commands*\n\n"
-        "Here are the available commands:\n\n"
-        "📁 /file — Get the latest file\n"
-        "ℹ️ /about — About this bot\n"
-        "🏠 /start — Open the main menu\n"
-        "❓ /help — Show this help message\n\n"
-        "If you need the latest available resource, "
-        "use the *Latest File* button below."
-    )
-
-    markup = types.InlineKeyboardMarkup()
-
-    back_button = types.InlineKeyboardButton(
-        "⬅️ Main Menu",
-        callback_data="home"
-    )
-
-    markup.add(back_button)
-
-    bot.send_message(
-        message.chat.id,
-        help_text,
-        reply_markup=markup
-    )
-
-
-# =========================
-# FILE COMMAND
-# =========================
-
-@bot.message_handler(commands=["file"])
-def file_command(message):
-
-    file_text = (
-        "📁 *Latest File*\n\n"
-        "The latest available file can be accessed "
-        "using the button below.\n\n"
-        "👇 Tap the button to continue."
-    )
-
-    markup = types.InlineKeyboardMarkup()
-
-    button = types.InlineKeyboardButton(
-        "📁 Get Latest File",
-        url=CHANNEL_LINK
-    )
-
-    back_button = types.InlineKeyboardButton(
-        "⬅️ Main Menu",
-        callback_data="home"
-    )
-
-    markup.add(button)
-    markup.add(back_button)
-
-    bot.send_message(
-        message.chat.id,
-        file_text,
-        reply_markup=markup
-    )
-
-
-# =========================
-# ABOUT COMMAND
-# =========================
-
-@bot.message_handler(commands=["about"])
-def about_command(message):
-
-    about_text = (
-        f"ℹ️ *About {BOT_NAME}*\n\n"
-        "This bot provides quick access to the latest "
-        "available resources.\n\n"
-        "⚡ Fast access\n"
-        "📁 Latest files\n"
-        "🔔 Easy navigation\n\n"
-        "Use /start to return to the main menu."
-    )
-
-    markup = types.InlineKeyboardMarkup()
-
-    back_button = types.InlineKeyboardButton(
-        "⬅️ Main Menu",
-        callback_data="home"
-    )
-
-    markup.add(back_button)
-
-    bot.send_message(
-        message.chat.id,
-        about_text,
-        reply_markup=markup
-    )
-
-
-# =========================
-# BUTTON CALLBACKS
-# =========================
-
-@bot.callback_query_handler(func=lambda call: call.data == "help")
-def help_callback(call):
-
-    help_text = (
-        "❓ *Help & Commands*\n\n"
-        "📁 /file — Get the latest file\n"
-        "ℹ️ /about — About this bot\n"
-        "🏠 /start — Main menu\n"
-        "❓ /help — Help menu\n\n"
-        "Choose an option below."
+    text = (
+        "<b>HELP</b>\n\n"
+        "Use the options below to navigate the bot.\n\n"
+        "<b>/start</b>\n"
+        "Open the main interface.\n\n"
+        "<b>/file</b>\n"
+        "Open the latest available release.\n\n"
+        "<b>/about</b>\n"
+        "View information about this service."
     )
 
     markup = types.InlineKeyboardMarkup(row_width=2)
 
-    file_button = types.InlineKeyboardButton(
-        "📁 Latest File",
+    latest_button = types.InlineKeyboardButton(
+        "▣  LATEST RELEASE",
         url=CHANNEL_LINK
     )
 
-    home_button = types.InlineKeyboardButton(
-        "⬅️ Main Menu",
+    back_button = types.InlineKeyboardButton(
+        "‹  BACK",
         callback_data="home"
     )
 
-    markup.add(file_button)
-    markup.add(home_button)
+    markup.add(latest_button)
+    markup.add(back_button)
 
-    bot.answer_callback_query(call.id)
-
-    bot.edit_message_text(
-        help_text,
-        call.message.chat.id,
-        call.message.message_id,
+    bot.send_message(
+        message.chat.id,
+        text,
         reply_markup=markup
     )
 
 
-@bot.callback_query_handler(func=lambda call: call.data == "about")
-def about_callback(call):
+# ============================================================
+# FILE
+# ============================================================
 
-    about_text = (
-        f"ℹ️ *About {BOT_NAME}*\n\n"
-        "This bot provides quick and easy access "
-        "to the latest available resources.\n\n"
-        "⚡ Fast\n"
-        "📁 Organized\n"
-        "🔒 Simple\n\n"
-        "Use the button below to return to the main menu."
+@bot.message_handler(commands=["file"])
+def file_command(message):
+
+    text = (
+        "<b>LATEST RELEASE</b>\n\n"
+        "The latest release is available through "
+        "the secure access point below.\n\n"
+        "Tap the button to continue."
     )
 
     markup = types.InlineKeyboardMarkup()
 
-    home_button = types.InlineKeyboardButton(
-        "⬅️ Main Menu",
+    latest_button = types.InlineKeyboardButton(
+        "▣  OPEN LATEST RELEASE",
+        url=CHANNEL_LINK
+    )
+
+    back_button = types.InlineKeyboardButton(
+        "‹  BACK",
         callback_data="home"
     )
 
-    markup.add(home_button)
+    markup.add(latest_button)
+    markup.add(back_button)
+
+    bot.send_message(
+        message.chat.id,
+        text,
+        reply_markup=markup
+    )
+
+
+# ============================================================
+# ABOUT
+# ============================================================
+
+@bot.message_handler(commands=["about"])
+def about_command(message):
+
+    text = (
+        f"<b>{BOT_NAME}</b>\n\n"
+        "A private access interface designed to provide "
+        "a clean and direct way to reach the latest available "
+        "resources.\n\n"
+        "<b>Version</b>  •  1.0\n"
+        "<b>Status</b>   •  Online"
+    )
+
+    markup = types.InlineKeyboardMarkup()
+
+    back_button = types.InlineKeyboardButton(
+        "‹  BACK",
+        callback_data="home"
+    )
+
+    markup.add(back_button)
+
+    bot.send_message(
+        message.chat.id,
+        text,
+        reply_markup=markup
+    )
+
+
+# ============================================================
+# HELP BUTTON
+# ============================================================
+
+@bot.callback_query_handler(func=lambda call: call.data == "help")
+def help_callback(call):
+
+    text = (
+        "<b>HELP</b>\n\n"
+        "Use the options below to navigate the bot.\n\n"
+        "<b>/start</b>\n"
+        "Open the main interface.\n\n"
+        "<b>/file</b>\n"
+        "Open the latest available release.\n\n"
+        "<b>/about</b>\n"
+        "View information about this service."
+    )
+
+    markup = types.InlineKeyboardMarkup(row_width=2)
+
+    latest_button = types.InlineKeyboardButton(
+        "▣  LATEST RELEASE",
+        url=CHANNEL_LINK
+    )
+
+    back_button = types.InlineKeyboardButton(
+        "‹  BACK",
+        callback_data="home"
+    )
+
+    markup.add(latest_button)
+    markup.add(back_button)
 
     bot.answer_callback_query(call.id)
 
     bot.edit_message_text(
-        about_text,
+        text,
         call.message.chat.id,
         call.message.message_id,
         reply_markup=markup
     )
 
+
+# ============================================================
+# ABOUT BUTTON
+# ============================================================
+
+@bot.callback_query_handler(func=lambda call: call.data == "about")
+def about_callback(call):
+
+    text = (
+        f"<b>{BOT_NAME}</b>\n\n"
+        "A private access interface designed to provide "
+        "a clean and direct way to reach the latest available "
+        "resources.\n\n"
+        "<b>Version</b>  •  1.0\n"
+        "<b>Status</b>   •  Online"
+    )
+
+    markup = types.InlineKeyboardMarkup()
+
+    back_button = types.InlineKeyboardButton(
+        "‹  BACK",
+        callback_data="home"
+    )
+
+    markup.add(back_button)
+
+    bot.answer_callback_query(call.id)
+
+    bot.edit_message_text(
+        text,
+        call.message.chat.id,
+        call.message.message_id,
+        reply_markup=markup
+    )
+
+
+# ============================================================
+# HOME BUTTON
+# ============================================================
 
 @bot.callback_query_handler(func=lambda call: call.data == "home")
 def home_callback(call):
 
     user_name = call.from_user.first_name or "there"
 
-    welcome_text = (
-        f"👋 *Welcome to {BOT_NAME}*\n\n"
-        f"Hello *{user_name}*!\n\n"
-        "You're now connected to our official bot.\n\n"
-        "📌 Choose an option below to continue."
+    text = (
+        f"<b>{BOT_NAME}</b>\n\n"
+        f"Hello, <b>{user_name}</b>.\n\n"
+        "Your access panel is ready.\n\n"
+        "Select an option below to continue."
     )
 
     bot.answer_callback_query(call.id)
 
     bot.edit_message_text(
-        welcome_text,
+        text,
         call.message.chat.id,
         call.message.message_id,
         reply_markup=main_menu()
     )
 
 
-# =========================
+# ============================================================
 # UNKNOWN COMMAND / MESSAGE
-# =========================
+# ============================================================
 
 @bot.message_handler(func=lambda message: True)
 def unknown_message(message):
 
+    text = (
+        f"<b>{BOT_NAME}</b>\n\n"
+        "I couldn't recognize that request.\n\n"
+        "Use <b>/help</b> to see the available commands."
+    )
+
     bot.send_message(
         message.chat.id,
-        "⚠️ *I didn't understand that command.*\n\n"
-        "Use /help to see the available commands.",
+        text,
         reply_markup=main_menu()
     )
 
 
-# =========================
-# BOT COMMAND MENU
-# =========================
+# ============================================================
+# TELEGRAM COMMAND MENU
+# ============================================================
 
 def set_commands():
 
     commands = [
-        types.BotCommand("start", "Open the main menu"),
-        types.BotCommand("file", "Get the latest file"),
-        types.BotCommand("help", "Show help"),
-        types.BotCommand("about", "About the bot"),
+        types.BotCommand(
+            "start",
+            "Open main interface"
+        ),
+        types.BotCommand(
+            "file",
+            "Open latest release"
+        ),
+        types.BotCommand(
+            "help",
+            "View help"
+        ),
+        types.BotCommand(
+            "about",
+            "About QRIISHNA"
+        )
     ]
 
     bot.set_my_commands(commands)
 
 
-# =========================
-# START BOT
-# =========================
+# ============================================================
+# START APPLICATION
+# ============================================================
 
 if __name__ == "__main__":
 
+    if not TOKEN:
+        raise RuntimeError(
+            "BOT_TOKEN environment variable is missing."
+        )
+
+    # Set Telegram command menu
     set_commands()
 
+    # Start Flask server for Render
     threading.Thread(
         target=run_flask,
         daemon=True
     ).start()
 
-    print("Bot successfully started! ✅")
+    print("======================================")
+    print("       QRIISHNA BOT IS ONLINE")
+    print("======================================")
 
+    # Start Telegram bot
     bot.infinity_polling(
         timeout=60,
         long_polling_timeout=60
