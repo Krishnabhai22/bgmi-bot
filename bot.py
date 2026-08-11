@@ -103,7 +103,6 @@ def contains_bad_language(text):
         cw = re.sub(r"[^a-zA-Z\u0900-\u097F]", "", word)
         if len(cw) >= 4 and cw in compact: return True
     return False
-
 def warning_text(user, warning_number):
     return f"<b>⚠️ COMMUNITY WARNING</b>\n\n👤 <b>User:</b> {user.first_name or 'User'}\n📌 <b>Reason:</b> Inappropriate language\n\n⚠️ <b>Warning:</b> {warning_number} / 3\n\n<i>Please maintain respectful language.</i>"
 
@@ -136,7 +135,8 @@ def back_menu():
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton("‹  BACK", callback_data="home"))
     return markup
-    def get_welcome_text(first_name):
+
+def get_welcome_text(first_name):
     return f"<b>{BOT_NAME}</b>\n\nWelcome, <b>{first_name}</b>.\n\nIt's a pleasure to have you here.\n\nExplore available options below.\n\n<b>Welcome aboard.</b>"
 
 def get_help_text():
@@ -264,5 +264,4 @@ if __name__ == "__main__":
     set_commands()
     threading.Thread(target=run_flask, daemon=True).start()
     bot.infinity_polling(timeout=60, long_polling_timeout=60)
-    
-    
+            
