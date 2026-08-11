@@ -34,6 +34,21 @@ start_time = time.time()
 
 
 # ============================================================
+# TOKEN VALIDATION & BOT INITIALIZATION WITH PARSE_MODE
+# ============================================================
+
+if not TOKEN:
+    raise RuntimeError(
+        "BOT_TOKEN environment variable is missing."
+    )
+
+bot = telebot.TeleBot(
+    TOKEN,
+    parse_mode="HTML"
+)
+
+
+# ============================================================
 # AUTO DELETE UTILITY (45 SECONDS)
 # ============================================================
 
@@ -78,26 +93,6 @@ def run_flask():
         host="0.0.0.0",
         port=port
     )
-
-
-# ============================================================
-# TOKEN VALIDATION
-# ============================================================
-
-if not TOKEN:
-    raise RuntimeError(
-        "BOT_TOKEN environment variable is missing."
-    )
-
-
-# ============================================================
-# TELEGRAM INITIALIZATION
-# ============================================================
-
-bot = telebot.TeleBot(
-    TOKEN,
-    parse_mode="HTML"
-)
 
 
 # ============================================================
@@ -329,7 +324,7 @@ def banned_text(user):
 
 
 # ============================================================
-# UI MENUS & CLEAN MINIMAL TEXTS
+# UI MENUS & CLEAN MINIMAL TEXTS (WITH MONOSPACE CODE TAGS)
 # ============================================================
 
 def start_menu():
@@ -525,10 +520,10 @@ def guide_menu(language, page):
 
 
 # ============================================================
-# COMMAND HANDLERS WITH AUTO DELETE
+# COMMAND HANDLERS WITH AUTO DELETE & PARSE_MODE
 # ============================================================
 
-@bot.message_handler(commands=["start"])
+@bot.message_handler(commands=["start", "dashboard"])
 def start(message):
     if message.from_user:
         register_user(message.from_user.id, message.from_user.first_name)
@@ -674,7 +669,7 @@ def moderation_handler(message):
 
 
 # ============================================================
-# CALLBACK QUERY HANDLERS
+# CALLBACK QUERY HANDLERS WITH PARSE_MODE
 # ============================================================
 
 @bot.callback_query_handler(func=lambda call: call.data == "home")
@@ -847,6 +842,7 @@ def set_commands():
     bot.set_my_commands(
         [
             types.BotCommand("start", "Launch Command Center"),
+            types.BotCommand("dashboard", "Open Main Dashboard"),
             types.BotCommand("files", "Access Download Portal"),
             types.BotCommand("updates", "View System Logs"),
             types.BotCommand("tutorial", "Installation Engine"),
