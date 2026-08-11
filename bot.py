@@ -404,32 +404,57 @@ def get_updates_text():
 
 def get_premium_text():
     return (
-        "<b>VIP SUBSCRIPTION PACKAGES & BILLING PORTAL</b>\n"
-        "────────────────────────────────────────\n"
-        "Select an authorization tier to proceed with access:\n\n"
-        "<b>TIER 01: ALL-IN-ONE ENTERPRISE PACK</b> — <code>INR 2,500</code>\n"
-        "├ Full VIP Access to All Configurations\n"
-        "├ Maximum Performance & CDN Direct Bandwidth\n"
-        "└ 100% Anti-Ban Security Bypass Module\n\n"
-        "<b>TIER 02: COMBAT PRO PACK</b> — <code>INR 2,000</code>\n"
-        "├ Magic Bullet Configuration + Precision Aimbot\n"
-        "└ Full ESP Wallhack Tracking System\n\n"
-        "<b>TIER 03: STREAMER LEGIT PACK</b> — <code>INR 750</code>\n"
-        "├ 10% Soft Magic Bullet\n"
-        "├ 10% Assist Aimbot Module\n"
-        "└ 30% Recoil Reduction System\n\n"
-        "────────────────────────────────────────\n"
-        f"<b>OFFICIAL MERCHANT UPI ID:</b> <code>{UPI_ID}</code>\n\n"
-        "<b>ACTIVATION PROCEDURE:</b>\n"
-        "1. Scan the embedded QR Code or copy the Merchant UPI ID.\n"
-        "2. Execute payment via GPay, PhonePe, or Paytm.\n"
-        "3. Dispatch payment screenshot to System Admin for verification."
+        "<b>VIP ACCESS PASS</b>\n"
+        "────────────────────────\n"
+        "Unlock elite configurations and priority bandwidth:\n\n"
+        "◆ Direct High-Speed CDN Download Links\n"
+        "◆ Exclusive Anti-Ban Security Bypass\n"
+        "◆ Instant License Key Activation\n"
+        "◆ 24/7 Dedicated Support Desk\n\n"
+        "<i>Use /buy to view packages and purchase your pass.</i>"
     )
+
+
+def get_packages_text():
+    return (
+        "<b>VIP SUBSCRIPTION PACKAGES</b>\n"
+        "────────────────────────────────────────\n"
+        "Select your desired package below to generate payment invoice:\n\n"
+        "<b>01. FULL VIP ENTERPRISE PACK</b>\n"
+        "├ Price: <b>INR 2,500</b>\n"
+        "├ Validity: <b>90 Days (3 Months)</b>\n"
+        "├ Features: High-Quality Magic Bullet + Precision Aimbot + Full ESP\n"
+        "└ Security: 100% Main ID Safe (Maximum Protection)\n\n"
+        "<b>02. PRO COMBAT PACK</b>\n"
+        "├ Price: <b>INR 1,500</b>\n"
+        "├ Validity: <b>90 Days (3 Months)</b>\n"
+        "├ Features: Magic Bullet + Precision Aimbot + Full ESP\n"
+        "└ Rule & Regulation: <b>8–10 Kills Limit Per Match</b> (Avoid Mass Reports)\n\n"
+        "<b>03. YOUTUBER STREAMER PACK</b>\n"
+        "├ Price: <b>INR 750</b>\n"
+        "├ Validity: <b>90 Days (3 Months)</b>\n"
+        "├ Features: 10% Soft Magic Bullet + 10% Assist Aimbot + 30% Recoil Control\n"
+        "└ Security: Fully Safe for Live Streamers (No Kills Limit)\n\n"
+        "────────────────────────────────────────\n"
+        "<i>Tap a package button below to proceed with payment.</i>"
+    )
+
+
+def packages_menu():
+    markup = types.InlineKeyboardMarkup(row_width=1)
+    markup.add(
+        types.InlineKeyboardButton("◇ BUY ENTERPRISE PACK — ₹2,500", callback_data="buy_p1"),
+        types.InlineKeyboardButton("◇ BUY PRO COMBAT PACK — ₹1,500", callback_data="buy_p2"),
+        types.InlineKeyboardButton("◇ BUY YOUTUBER PACK — ₹750", callback_data="buy_p3"),
+        types.InlineKeyboardButton("‹ DASHBOARD", callback_data="home")
+    )
+    return markup
 
 
 def premium_menu():
     markup = types.InlineKeyboardMarkup(row_width=1)
     markup.add(
+        types.InlineKeyboardButton("◇ BUY VIP PASS", callback_data="trigger_buy"),
         types.InlineKeyboardButton("◇ CONTACT ADMIN", url=ADMIN_CONTACT),
         types.InlineKeyboardButton("‹ DASHBOARD", callback_data="home")
     )
@@ -581,27 +606,23 @@ def tutorial_command(message):
     )
 
 
-@bot.message_handler(commands=["premium", "buy", "pay"])
-def buy_command(message):
-    caption_text = get_premium_text()
+@bot.message_handler(commands=["premium"])
+def premium_command(message):
+    send_auto_delete_message(
+        message.chat.id,
+        get_premium_text(),
+        reply_markup=premium_menu()
+    )
 
-    try:
-        if os.path.exists("qr.png"):
-            with open("qr.png", "rb") as photo:
-                sent_msg = bot.send_photo(
-                    chat_id=message.chat.id,
-                    photo=photo,
-                    caption=caption_text,
-                    parse_mode="HTML",
-                    reply_markup=premium_menu()
-                )
-            if sent_msg:
-                auto_delete_message(message.chat.id, sent_msg.message_id, delay=60)
-        else:
-            send_auto_delete_message(message.chat.id, caption_text, reply_markup=premium_menu(), delay=60)
-    except Exception as e:
-        print(f"Error sending buy option: {e}")
-        send_auto_delete_message(message.chat.id, caption_text, reply_markup=premium_menu(), delay=60)
+
+@bot.message_handler(commands=["buy", "pay"])
+def buy_command(message):
+    send_auto_delete_message(
+        message.chat.id,
+        get_packages_text(),
+        reply_markup=packages_menu(),
+        delay=60
+    )
 
 
 @bot.message_handler(commands=["access"])
@@ -621,6 +642,82 @@ def support_command(message):
         get_support_text(),
         reply_markup=support_menu()
     )
+
+
+# ============================================================
+# PAYMENT CALLBACK HANDLERS (DYNAMIC QR GENERATION)
+# ============================================================
+
+def send_payment_invoice(chat_id, pack_name, amount):
+    caption_text = (
+        "<b>OFFICIAL INVOICE & PAYMENT PORTAL</b>\n"
+        "────────────────────────────────────────\n"
+        f"Selected Package: <b>{pack_name}</b>\n"
+        f"Amount Payable: <code>INR {amount}</code>\n"
+        "Validity Period: <b>90 Days (3 Months)</b>\n\n"
+        f"<b>OFFICIAL MERCHANT UPI ID:</b> <code>{UPI_ID}</code>\n\n"
+        "<b>PAYMENT INSTRUCTIONS:</b>\n"
+        "1. Scan the QR code above or tap the UPI ID to copy.\n"
+        "2. Complete the transfer of exact amount via GPay, PhonePe, or Paytm.\n"
+        "3. Send the payment receipt screenshot to Admin for instant key activation."
+    )
+
+    try:
+        if os.path.exists("qr.png"):
+            with open("qr.png", "rb") as photo:
+                sent_msg = bot.send_photo(
+                    chat_id=chat_id,
+                    photo=photo,
+                    caption=caption_text,
+                    parse_mode="HTML",
+                    reply_markup=premium_menu()
+                )
+            if sent_msg:
+                auto_delete_message(chat_id, sent_msg.message_id, delay=60)
+        else:
+            send_auto_delete_message(chat_id, caption_text, reply_markup=premium_menu(), delay=60)
+    except Exception as e:
+        print(f"Error sending payment photo: {e}")
+        send_auto_delete_message(chat_id, caption_text, reply_markup=premium_menu(), delay=60)
+
+
+@bot.callback_query_handler(func=lambda call: call.data in ["buy_p1", "buy_p2", "buy_p3"])
+def process_payment_selection(call):
+    try:
+        bot.answer_callback_query(call.id)
+        
+        try:
+            bot.delete_message(call.message.chat.id, call.message.message_id)
+        except Exception:
+            pass
+
+        if call.data == "buy_p1":
+            send_payment_invoice(call.message.chat.id, "FULL VIP ENTERPRISE PACK", "2,500")
+        elif call.data == "buy_p2":
+            send_payment_invoice(call.message.chat.id, "PRO COMBAT PACK", "1,500")
+        elif call.data == "buy_p3":
+            send_payment_invoice(call.message.chat.id, "YOUTUBER STREAMER PACK", "750")
+
+    except Exception as e:
+        print(f"Callback error: {e}")
+
+
+@bot.callback_query_handler(func=lambda call: call.data == "trigger_buy")
+def trigger_buy_callback(call):
+    try:
+        bot.answer_callback_query(call.id)
+        try:
+            bot.delete_message(call.message.chat.id, call.message.message_id)
+        except Exception:
+            pass
+        send_auto_delete_message(
+            call.message.chat.id,
+            get_packages_text(),
+            reply_markup=packages_menu(),
+            delay=60
+        )
+    except Exception:
+        pass
 
 
 # ============================================================
@@ -770,7 +867,13 @@ def cb_tutorial(call):
 def cb_premium(call):
     try:
         bot.answer_callback_query(call.id)
-        buy_command(call.message)
+        bot.edit_message_text(
+            get_premium_text(),
+            call.message.chat.id,
+            call.message.message_id,
+            reply_markup=premium_menu(),
+            parse_mode="HTML"
+        )
     except Exception:
         pass
 
