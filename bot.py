@@ -1,17 +1,19 @@
 import os
 import threading
+
 import telebot
 from telebot import types
 from flask import Flask
 
+
 # ============================================================
 # QRIISHNA
-# Premium Telegram Interface
+# Premium Telegram Bot Interface
 # ============================================================
 
 TOKEN = os.environ.get("BOT_TOKEN")
 
-# Private resource / channel link
+# Private resource / channel
 CHANNEL_LINK = "https://t.me/+GHjJmfql0o02YWZl"
 
 BOT_NAME = "QRIISHNA"
@@ -20,6 +22,7 @@ BOT_VERSION = "1.0"
 
 # ============================================================
 # FLASK SERVER
+# Required for Render
 # ============================================================
 
 app = Flask(__name__)
@@ -40,12 +43,12 @@ def run_flask():
 
 
 # ============================================================
-# TELEGRAM BOT
+# BOT INITIALIZATION
 # ============================================================
 
 if not TOKEN:
     raise RuntimeError(
-        "BOT_TOKEN is not configured in environment variables."
+        "BOT_TOKEN environment variable is missing."
     )
 
 bot = telebot.TeleBot(
@@ -55,11 +58,11 @@ bot = telebot.TeleBot(
 
 
 # ============================================================
-# MAIN / WELCOME MENU
+# WELCOME MENU
 #
 # IMPORTANT:
-# No access button is shown here.
-# User must manually use /hacks for access.
+# No access button here.
+# User must use /hacks to request access.
 # ============================================================
 
 def welcome_menu():
@@ -85,14 +88,32 @@ def welcome_menu():
 
 
 # ============================================================
+# BACK MENU
+# ============================================================
+
+def back_menu():
+
+    markup = types.InlineKeyboardMarkup()
+
+    back_button = types.InlineKeyboardButton(
+        "‹  BACK",
+        callback_data="home"
+    )
+
+    markup.add(back_button)
+
+    return markup
+
+
+# ============================================================
 # ACCESS MENU
 #
-# This menu appears ONLY after /hacks
+# This appears ONLY after /hacks
 # ============================================================
 
 def access_menu():
 
-    markup = types.InlineKeyboardMarkup(row_width=1)
+    markup = types.InlineKeyboardMarkup()
 
     access_button = types.InlineKeyboardButton(
         "▣  OPEN PRIVATE ACCESS",
@@ -100,7 +121,7 @@ def access_menu():
     )
 
     back_button = types.InlineKeyboardButton(
-        "‹  RETURN TO QRIISHNA",
+        "‹  BACK",
         callback_data="home"
     )
 
@@ -111,21 +132,20 @@ def access_menu():
 
 
 # ============================================================
-# BACK BUTTON
+# START MESSAGE
 # ============================================================
 
-def back_menu():
+def get_welcome_text(first_name):
 
-    markup = types.InlineKeyboardMarkup()
-
-    back_button = types.InlineKeyboardButton(
-        "‹  RETURN TO QRIISHNA",
-        callback_data="home"
+    return (
+        f"<b>{BOT_NAME}</b>\n\n"
+        f"Welcome, <b>{first_name}</b>.\n\n"
+        "It's a pleasure to have you here.\n\n"
+        "You've reached the official interface. "
+        "Take a moment to explore the options below "
+        "and discover what is available.\n\n"
+        "<b>Welcome aboard.</b>"
     )
-
-    markup.add(back_button)
-
-    return markup
 
 
 # ============================================================
@@ -137,23 +157,9 @@ def start(message):
 
     first_name = message.from_user.first_name or "there"
 
-    text = (
-        "<b>QRIISHNA</b>\n\n"
-
-        f"Welcome, <b>{first_name}</b>.\n\n"
-
-        "It's a pleasure to have you here.\n\n"
-
-        "You've reached the official interface. "
-        "Take a moment to explore the options below "
-        "and discover how everything works.\n\n"
-
-        "<i>Your journey starts here.</i>"
-    )
-
     bot.send_message(
         message.chat.id,
-        text,
+        get_welcome_text(first_name),
         reply_markup=welcome_menu()
     )
 
@@ -161,21 +167,18 @@ def start(message):
 # ============================================================
 # /HACKS
 #
-# Access is intentionally gated behind this command.
+# Access is intentionally available only through this command.
 # ============================================================
 
 @bot.message_handler(commands=["hacks"])
 def hacks(message):
 
     text = (
-        "<b>QRIISHNA ACCESS</b>\n\n"
-
+        f"<b>{BOT_NAME} ACCESS</b>\n\n"
         "Access request received.\n\n"
-
         "The private resource area is now available "
         "for you to open.\n\n"
-
-        "<i>Use the secure access point below to continue.</i>"
+        "Use the secure access point below to continue."
     )
 
     bot.send_message(
@@ -193,21 +196,17 @@ def hacks(message):
 def help_command(message):
 
     text = (
-        "<b>QRIISHNA • HELP</b>\n\n"
-
-        "Everything you need is available through "
-        "the commands below.\n\n"
+        f"<b>{BOT_NAME} • HELP</b>\n\n"
+        "Use the commands below to navigate the interface.\n\n"
 
         "<b>/start</b>\n"
-        "Return to the main welcome interface.\n\n"
+        "Open the main welcome screen.\n\n"
 
         "<b>/hacks</b>\n"
         "Open the private access panel.\n\n"
 
         "<b>/about</b>\n"
-        "Learn more about QRIISHNA.\n\n"
-
-        "<i>Choose a command whenever you're ready.</i>"
+        "Learn more about QRIISHNA."
     )
 
     bot.send_message(
@@ -225,22 +224,15 @@ def help_command(message):
 def about_command(message):
 
     text = (
-        "<b>QRIISHNA</b>\n\n"
-
-        "A dedicated Telegram interface designed "
-        "around a simple principle — keep the experience "
-        "clean, direct and easy to navigate.\n\n"
-
-        "<b>INTERFACE</b>\n"
-        "Premium access experience\n\n"
+        f"<b>{BOT_NAME}</b>\n\n"
+        "A clean and dedicated Telegram interface "
+        "designed for simple, direct and controlled access.\n\n"
 
         "<b>VERSION</b>\n"
         f"{BOT_VERSION}\n\n"
 
         "<b>STATUS</b>\n"
-        "Online\n\n"
-
-        "<i>Thank you for being here.</i>"
+        "Online"
     )
 
     bot.send_message(
@@ -253,19 +245,17 @@ def about_command(message):
 # ============================================================
 # /FILE
 #
-# Does NOT bypass the /hacks access flow.
+# Does not bypass the /hacks flow.
 # ============================================================
 
 @bot.message_handler(commands=["file"])
 def file_command(message):
 
     text = (
-        "<b>PRIVATE ACCESS</b>\n\n"
-
-        "This resource is available through "
-        "the QRIISHNA access panel.\n\n"
-
-        "Use <b>/hacks</b> to continue."
+        f"<b>{BOT_NAME} ACCESS</b>\n\n"
+        "The requested resource is available "
+        "through the private access panel.\n\n"
+        "Use /hacks to continue."
     )
 
     bot.send_message(
@@ -276,7 +266,7 @@ def file_command(message):
 
 
 # ============================================================
-# HELP CALLBACK
+# HELP BUTTON CALLBACK
 # ============================================================
 
 @bot.callback_query_handler(
@@ -285,21 +275,17 @@ def file_command(message):
 def help_callback(call):
 
     text = (
-        "<b>QRIISHNA • HELP</b>\n\n"
-
-        "Everything you need is available through "
-        "the commands below.\n\n"
+        f"<b>{BOT_NAME} • HELP</b>\n\n"
+        "Use the commands below to navigate the interface.\n\n"
 
         "<b>/start</b>\n"
-        "Return to the main welcome interface.\n\n"
+        "Open the main welcome screen.\n\n"
 
         "<b>/hacks</b>\n"
         "Open the private access panel.\n\n"
 
         "<b>/about</b>\n"
-        "Learn more about QRIISHNA.\n\n"
-
-        "<i>Choose a command whenever you're ready.</i>"
+        "Learn more about QRIISHNA."
     )
 
     bot.answer_callback_query(call.id)
@@ -313,7 +299,7 @@ def help_callback(call):
 
 
 # ============================================================
-# ABOUT CALLBACK
+# ABOUT BUTTON CALLBACK
 # ============================================================
 
 @bot.callback_query_handler(
@@ -322,22 +308,15 @@ def help_callback(call):
 def about_callback(call):
 
     text = (
-        "<b>QRIISHNA</b>\n\n"
-
-        "A dedicated Telegram interface designed "
-        "around a simple principle — keep the experience "
-        "clean, direct and easy to navigate.\n\n"
-
-        "<b>INTERFACE</b>\n"
-        "Premium access experience\n\n"
+        f"<b>{BOT_NAME}</b>\n\n"
+        "A clean and dedicated Telegram interface "
+        "designed for simple, direct and controlled access.\n\n"
 
         "<b>VERSION</b>\n"
         f"{BOT_VERSION}\n\n"
 
         "<b>STATUS</b>\n"
-        "Online\n\n"
-
-        "<i>Thank you for being here.</i>"
+        "Online"
     )
 
     bot.answer_callback_query(call.id)
@@ -351,7 +330,7 @@ def about_callback(call):
 
 
 # ============================================================
-# HOME CALLBACK
+# BACK / HOME CALLBACK
 # ============================================================
 
 @bot.callback_query_handler(
@@ -361,24 +340,10 @@ def home_callback(call):
 
     first_name = call.from_user.first_name or "there"
 
-    text = (
-        "<b>QRIISHNA</b>\n\n"
-
-        f"Welcome, <b>{first_name}</b>.\n\n"
-
-        "It's a pleasure to have you here.\n\n"
-
-        "You've reached the official interface. "
-        "Take a moment to explore the options below "
-        "and discover how everything works.\n\n"
-
-        "<i>Your journey starts here.</i>"
-    )
-
     bot.answer_callback_query(call.id)
 
     bot.edit_message_text(
-        text,
+        get_welcome_text(first_name),
         call.message.chat.id,
         call.message.message_id,
         reply_markup=welcome_menu()
@@ -386,18 +351,16 @@ def home_callback(call):
 
 
 # ============================================================
-# UNKNOWN COMMAND / MESSAGE
+# UNKNOWN TEXT / COMMAND
 # ============================================================
 
 @bot.message_handler(func=lambda message: True)
 def unknown_message(message):
 
     text = (
-        "<b>QRIISHNA</b>\n\n"
-
+        f"<b>{BOT_NAME}</b>\n\n"
         "I couldn't understand that request.\n\n"
-
-        "Use <b>/help</b> to view the available commands."
+        "Use /help to view the available commands."
     )
 
     bot.send_message(
@@ -414,7 +377,6 @@ def unknown_message(message):
 def set_commands():
 
     commands = [
-
         types.BotCommand(
             "start",
             "Open QRIISHNA"
@@ -437,38 +399,37 @@ def set_commands():
 
         types.BotCommand(
             "file",
-            "Resource access information"
+            "Access information"
         )
-
     ]
 
     bot.set_my_commands(commands)
 
 
 # ============================================================
-# APPLICATION START
+# START APPLICATION
 # ============================================================
 
 if __name__ == "__main__":
 
     print("----------------------------------------")
-    print("        QRIISHNA INITIALIZING")
+    print("          QRIISHNA INITIALIZING")
     print("----------------------------------------")
 
     set_commands()
 
-    # Render web server
+    # Start Flask server for Render
     threading.Thread(
         target=run_flask,
         daemon=True
     ).start()
 
-    print("Web server        : ONLINE")
-    print("Telegram interface: ONLINE")
-    print("Bot               : QRIISHNA")
+    print("Flask server      : ONLINE")
+    print("Telegram bot      : ONLINE")
+    print("Bot name          : QRIISHNA")
     print("----------------------------------------")
 
     bot.infinity_polling(
         timeout=60,
         long_polling_timeout=60
-)
+    )
