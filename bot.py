@@ -888,4 +888,422 @@ def guide_menu(language, page):
     if page < total_pages - 1:
 
         next_button = types.InlineKeyboardButton(
+            "NEXT  ›",
+            callback_data=f"guide_{language}_{page + 1}"
+        )
+
+        markup.add(
+            previous_button,
+            next_button
+        )
+
+    else:
+
+        markup.add(previous_button)
+
+    return markup
+
+
+# ============================================================
+# GUIDE PAGE TEXT
+# ============================================================
+
+def get_guide_page(language, page):
+
+    if language == "en":
+
+        pages = ENGLISH_GUIDE
+        language_name = "ENGLISH"
+
+    else:
+
+        pages = HINGLISH_GUIDE
+        language_name = "HINGLISH"
+
+    total_pages = len(pages)
+
+    page_text = pages[page]
+
+    return (
+        f"<b>{BOT_NAME} • INSTALLATION GUIDE</b>\n"
+        f"<i>{language_name} • {page + 1}/{total_pages}</i>\n\n"
+        f"{page_text}"
+    )
+
+
+# ============================================================
+# /START
+# ============================================================
+
+@bot.message_handler(commands=["start"])
+def start(message):
+
+    first_name = message.from_user.first_name or "there"
+
+    bot.send_message(
+        message.chat.id,
+        get_welcome_text(first_name),
+        reply_markup=welcome_menu()
+    )
+
+
+# ============================================================
+# /HACKS
+# ============================================================
+
+@bot.message_handler(commands=["hacks"])
+def hacks(message):
+
+    text = (
+        f"<b>{BOT_NAME} ACCESS</b>\n\n"
+        "Access request received.\n\n"
+        "The private resource area is now available "
+        "for you to open.\n\n"
+        "Use the secure access point below to continue."
+    )
+
+    bot.send_message(
+        message.chat.id,
+        text,
+        reply_markup=access_menu()
+    )
+
+
+# ============================================================
+# /HELP
+# ============================================================
+
+@bot.message_handler(commands=["help"])
+def help_command(message):
+
+    bot.send_message(
+        message.chat.id,
+        get_help_text(),
+        reply_markup=help_menu()
+    )
+
+
+# ============================================================
+# /ABOUT
+# ============================================================
+
+@bot.message_handler(commands=["about"])
+def about_command(message):
+
+    text = (
+        f"<b>{BOT_NAME}</b>\n\n"
+        "A clean and dedicated Telegram interface "
+        "designed for simple, direct and controlled access.\n\n"
+
+        "<b>VERSION</b>\n"
+        f"{BOT_VERSION}\n\n"
+
+        "<b>STATUS</b>\n"
+        "Online"
+    )
+
+    bot.send_message(
+        message.chat.id,
+        text,
+        reply_markup=back_menu()
+    )
+
+
+# ============================================================
+# /FILE
+# ============================================================
+
+@bot.message_handler(commands=["file"])
+def file_command(message):
+
+    text = (
+        f"<b>{BOT_NAME} ACCESS</b>\n\n"
+        "The requested resource is available "
+        "through the private access panel.\n\n"
+        "Use <b>/hacks</b> to continue."
+    )
+
+    bot.send_message(
+        message.chat.id,
+        text,
+        reply_markup=back_menu()
+    )
+
+
+# ============================================================
+# MAIN HELP BUTTON
+# ============================================================
+
+@bot.callback_query_handler(
+    func=lambda call: call.data == "help"
+)
+def help_callback(call):
+
+    bot.answer_callback_query(call.id)
+
+    bot.edit_message_text(
+        get_help_text(),
+        call.message.chat.id,
+        call.message.message_id,
+        reply_markup=help_menu()
+    )
+
+
+# ============================================================
+# ABOUT BUTTON
+# ============================================================
+
+@bot.callback_query_handler(
+    func=lambda call: call.data == "about"
+)
+def about_callback(call):
+
+    text = (
+        f"<b>{BOT_NAME}</b>\n\n"
+        "A clean and dedicated Telegram interface "
+        "designed for simple, direct and controlled access.\n\n"
+
+        "<b>VERSION</b>\n"
+        f"{BOT_VERSION}\n\n"
+
+        "<b>STATUS</b>\n"
+        "Online"
+    )
+
+    bot.answer_callback_query(call.id)
+
+    bot.edit_message_text(
+        text,
+        call.message.chat.id,
+        call.message.message_id,
+        reply_markup=back_menu()
+    )
+
+
+# ============================================================
+# INSTALLATION GUIDE BUTTON
+# ============================================================
+
+@bot.callback_query_handler(
+    func=lambda call: call.data == "guide"
+)
+def guide_callback(call):
+
+    bot.answer_callback_query(call.id)
+
+    bot.edit_message_text(
+        get_language_text(),
+        call.message.chat.id,
+        call.message.message_id,
+        reply_markup=language_menu()
+    )
+
+
+# ============================================================
+# ENGLISH GUIDE START
+# ============================================================
+
+@bot.callback_query_handler(
+    func=lambda call: call.data == "guide_en"
+)
+def guide_english_callback(call):
+
+    bot.answer_callback_query(call.id)
+
+    bot.edit_message_text(
+        get_guide_page("en", 0),
+        call.message.chat.id,
+        call.message.message_id,
+        reply_markup=guide_menu("en", 0)
+    )
+
+
+# ============================================================
+# HINGLISH GUIDE START
+# ============================================================
+
+@bot.callback_query_handler(
+    func=lambda call: call.data == "guide_hi"
+)
+def guide_hinglish_callback(call):
+
+    bot.answer_callback_query(call.id)
+
+    bot.edit_message_text(
+        get_guide_page("hi", 0),
+        call.message.chat.id,
+        call.message.message_id,
+        reply_markup=guide_menu("hi", 0)
+    )
+
+
+# ============================================================
+# GUIDE PAGE NAVIGATION
+# ============================================================
+
+@bot.callback_query_handler(
+    func=lambda call: call.data.startswith("guide_en_")
+)
+def guide_english_pages(call):
+
+    try:
+
+        page = int(
+            call.data.replace("guide_en_", "")
+        )
+
+    except ValueError:
+
+        bot.answer_callback_query(call.id)
+        return
+
+    if page < 0 or page >= len(ENGLISH_GUIDE):
+
+        bot.answer_callback_query(
+            call.id,
+            "This page is not available."
+        )
+
+        return
+
+    bot.answer_callback_query(call.id)
+
+    bot.edit_message_text(
+        get_guide_page("en", page),
+        call.message.chat.id,
+        call.message.message_id,
+        reply_markup=guide_menu("en", page)
+    )
+
+
+# ============================================================
+# HINGLISH GUIDE PAGE NAVIGATION
+# ============================================================
+
+@bot.callback_query_handler(
+    func=lambda call: call.data.startswith("guide_hi_")
+)
+def guide_hinglish_pages(call):
+
+    try:
+
+        page = int(
+            call.data.replace("guide_hi_", "")
+        )
+
+    except ValueError:
+
+        bot.answer_callback_query(call.id)
+        return
+
+    if page < 0 or page >= len(HINGLISH_GUIDE):
+
+        bot.answer_callback_query(
+            call.id,
+            "This page is not available."
+        )
+
+        return
+
+    bot.answer_callback_query(call.id)
+
+    bot.edit_message_text(
+        get_guide_page("hi", page),
+        call.message.chat.id,
+        call.message.message_id,
+        reply_markup=guide_menu("hi", page)
+    )
+
+
+# ============================================================
+# BACK TO HOME
+# ============================================================
+
+@bot.callback_query_handler(
+    func=lambda call: call.data == "home"
+)
+def home_callback(call):
+
+    first_name = call.from_user.first_name or "there"
+
+    bot.answer_callback_query(call.id)
+
+    bot.edit_message_text(
+        get_welcome_text(first_name),
+        call.message.chat.id,
+        call.message.message_id,
+        reply_markup=welcome_menu()
+    )
+
+
+# ============================================================
+# TELEGRAM COMMAND MENU
+# ============================================================
+
+def set_commands():
+
+    commands = [
+
+        types.BotCommand(
+            "start",
+            "Open QRIISHNA"
+        ),
+
+        types.BotCommand(
+            "hacks",
+            "Open private access"
+        ),
+
+        types.BotCommand(
+            "help",
+            "View help and installation guide"
+        ),
+
+        types.BotCommand(
+            "about",
+            "About QRIISHNA"
+        ),
+
+        types.BotCommand(
+            "file",
+            "Access information"
+        )
+
+    ]
+
+    bot.set_my_commands(commands)
+
+
+# ============================================================
+# START APPLICATION
+# ============================================================
+
+if __name__ == "__main__":
+
+    print("----------------------------------------")
+    print("          QRIISHNA INITIALIZING")
+    print("----------------------------------------")
+
+    # Initialize warning database.
+    init_database()
+
+    set_commands()
+
+    threading.Thread(
+        target=run_flask,
+        daemon=True
+    ).start()
+
+    print("Flask server : ONLINE")
+    print("Telegram bot : ONLINE")
+    print("Bot name     : QRIISHNA")
+    print("Moderation   : ENABLED")
+    print("Warnings     : 3 STRIKES")
+    print("Owner ID     : 1332494807")
+    print("----------------------------------------")
+
+    bot.infinity_polling(
+        timeout=60,
+        long_polling_timeout=60
+        )
      
