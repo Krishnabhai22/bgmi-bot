@@ -7,1303 +7,1335 @@ import telebot
 from telebot import types
 from flask import Flask
 
+============================================================
 
-# ============================================================
-# QRIISHNA
-# Premium Telegram Resource Bot
-# ============================================================
+QRIISHNA
+
+Premium Telegram Resource Bot
+
+============================================================
 
 TOKEN = os.environ.get("BOT_TOKEN")
 
-# Private channel / resource link
+Private channel / resource link
+
 CHANNEL_LINK = "https://t.me/+GHjJmfql0o02YWZl"
 
 BOT_NAME = "QRIISHNA"
 BOT_VERSION = "1.0"
 
-# ============================================================
-# OWNER / WHITELIST
-# ============================================================
-# This ID will never receive warnings or bans.
+============================================================
+
+OWNER / WHITELIST
+
+============================================================
+
+This ID will never receive warnings or bans.
 
 OWNER_IDS = {
-    1332494807
+1332494807
 }
 
+============================================================
 
-# ============================================================
-# FLASK SERVER
-# ============================================================
+FLASK SERVER
 
-app = Flask(__name__)
+============================================================
 
+app = Flask(name)
 
 @app.route("/")
 def home():
-    return "QRIISHNA • ONLINE"
-
+return "QRIISHNA • ONLINE"
 
 def run_flask():
-    port = int(os.environ.get("PORT", 8080))
+port = int(os.environ.get("PORT", 8080))
 
-    app.run(
-        host="0.0.0.0",
-        port=port
-    )
-
-
-# ============================================================
-# BOT INITIALIZATION
-# ============================================================
-
-if not TOKEN:
-    raise RuntimeError(
-        "BOT_TOKEN environment variable is missing."
-    )
-
-bot = telebot.TeleBot(
-    TOKEN,
-    parse_mode="HTML"
+app.run(  
+    host="0.0.0.0",  
+    port=port  
 )
 
+============================================================
 
-# ============================================================
-# WARNING DATABASE
-# ============================================================
+BOT INITIALIZATION
+
+============================================================
+
+if not TOKEN:
+raise RuntimeError(
+"BOT_TOKEN environment variable is missing."
+)
+
+bot = telebot.TeleBot(
+TOKEN,
+parse_mode="HTML"
+)
+
+============================================================
+
+WARNING DATABASE
+
+============================================================
 
 DB_FILE = "warnings.db"
 
 db_lock = threading.Lock()
 
-
 def init_database():
 
-    with db_lock:
+with db_lock:  
 
-        connection = sqlite3.connect(
-            DB_FILE,
-            check_same_thread=False
-        )
+    connection = sqlite3.connect(  
+        DB_FILE,  
+        check_same_thread=False  
+    )  
 
-        cursor = connection.cursor()
+    cursor = connection.cursor()  
 
-        cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS warnings (
-                chat_id INTEGER NOT NULL,
-                user_id INTEGER NOT NULL,
-                warning_count INTEGER NOT NULL DEFAULT 0,
-                PRIMARY KEY (chat_id, user_id)
-            )
-            """
-        )
+    cursor.execute(  
+        """  
+        CREATE TABLE IF NOT EXISTS warnings (  
+            chat_id INTEGER NOT NULL,  
+            user_id INTEGER NOT NULL,  
+            warning_count INTEGER NOT NULL DEFAULT 0,  
+            PRIMARY KEY (chat_id, user_id)  
+        )  
+        """  
+    )  
 
-        connection.commit()
-        connection.close()
-
+    connection.commit()  
+    connection.close()
 
 def get_warning_count(chat_id, user_id):
 
-    with db_lock:
+with db_lock:  
 
-        connection = sqlite3.connect(
-            DB_FILE,
-            check_same_thread=False
-        )
+    connection = sqlite3.connect(  
+        DB_FILE,  
+        check_same_thread=False  
+    )  
 
-        cursor = connection.cursor()
+    cursor = connection.cursor()  
 
-        cursor.execute(
-            """
-            SELECT warning_count
-            FROM warnings
-            WHERE chat_id = ? AND user_id = ?
-            """,
-            (chat_id, user_id)
-        )
+    cursor.execute(  
+        """  
+        SELECT warning_count  
+        FROM warnings  
+        WHERE chat_id = ? AND user_id = ?  
+        """,  
+        (chat_id, user_id)  
+    )  
 
-        result = cursor.fetchone()
+    result = cursor.fetchone()  
 
-        connection.close()
+    connection.close()  
 
-    if result:
-        return result[0]
+if result:  
+    return result[0]  
 
-    return 0
-
+return 0
 
 def add_warning(chat_id, user_id):
 
-    with db_lock:
+with db_lock:  
 
-        connection = sqlite3.connect(
-            DB_FILE,
-            check_same_thread=False
-        )
+    connection = sqlite3.connect(  
+        DB_FILE,  
+        check_same_thread=False  
+    )  
 
-        cursor = connection.cursor()
+    cursor = connection.cursor()  
 
-        cursor.execute(
-            """
-            INSERT INTO warnings (
-                chat_id,
-                user_id,
-                warning_count
-            )
-            VALUES (?, ?, 1)
+    cursor.execute(  
+        """  
+        INSERT INTO warnings (  
+            chat_id,  
+            user_id,  
+            warning_count  
+        )  
+        VALUES (?, ?, 1)  
 
-            ON CONFLICT(chat_id, user_id)
-            DO UPDATE SET
-                warning_count = warning_count + 1
-            """,
-            (chat_id, user_id)
-        )
+        ON CONFLICT(chat_id, user_id)  
+        DO UPDATE SET  
+            warning_count = warning_count + 1  
+        """,  
+        (chat_id, user_id)  
+    )  
 
-        connection.commit()
+    connection.commit()  
 
-        cursor.execute(
-            """
-            SELECT warning_count
-            FROM warnings
-            WHERE chat_id = ? AND user_id = ?
-            """,
-            (chat_id, user_id)
-        )
+    cursor.execute(  
+        """  
+        SELECT warning_count  
+        FROM warnings  
+        WHERE chat_id = ? AND user_id = ?  
+        """,  
+        (chat_id, user_id)  
+    )  
 
-        result = cursor.fetchone()
+    result = cursor.fetchone()  
 
-        connection.close()
+    connection.close()  
 
-    return result[0]
+return result[0]
 
+============================================================
 
-# ============================================================
-# PROFANITY FILTER
-# ============================================================
+PROFANITY FILTER
 
-# Common Hindi / Hinglish / English abusive words and
-# frequently used variations.
+============================================================
+
+Common Hindi / Hinglish / English abusive words and
+
+frequently used variations.
 
 BAD_WORDS = [
 
-    # Hindi / Hinglish
-    "loda",
-    "lauda",
-    "louda",
-    "lawda",
-    "lavda",
-    "laude",
-    "laude",
-    "lode",
-    "lodaa",
-    "loudaa",
-    "lawdaa",
+# Hindi / Hinglish  
+"loda",  
+"lauda",  
+"louda",  
+"lawda",  
+"lavda",  
+"laude",  
+"laude",  
+"lode",  
+"lodaa",  
+"loudaa",  
+"lawdaa",  
 
-    "chod",
-    "chhod",
-    "chud",
-    "chut",
-    "chutiya",
-    "chutiye",
-    "chutia",
-    "chutiy",
-    "chutiyaa",
+"chod",  
+"chhod",  
+"chud",  
+"chut",  
+"chutiya",  
+"chutiye",  
+"chutia",  
+"chutiy",  
+"chutiyaa",  
 
-    "madarchod",
-    "madarchut",
-    "madar chod",
-    "madar ch0d",
-    "mc",
+"madarchod",  
+"madarchut",  
+"madar chod",  
+"madar ch0d",  
+"mc",  
 
-    "bhenchod",
-    "bhen chod",
-    "behenchod",
-    "behen chod",
-    "bc",
+"bhenchod",  
+"bhen chod",  
+"behenchod",  
+"behen chod",  
+"bc",  
 
-    "gaand",
-    "gand",
-    "gandu",
-    "gandu",
+"gaand",  
+"gand",  
+"gandu",  
+"gandu",  
 
-    "randi",
-    "rand",
-    "randwa",
+"randi",  
+"rand",  
+"randwa",  
 
-    "harami",
-    "haraami",
-    "haramkhor",
+"harami",  
+"haraami",  
+"haramkhor",  
 
-    "kamina",
-    "kamine",
-    "kaminey",
+"kamina",  
+"kamine",  
+"kaminey",  
 
-    "kutte",
-    "kutta",
-    "kutiya",
+"kutte",  
+"kutta",  
+"kutiya",  
 
-    "bhosdi",
-    "bhosdike",
-    "bhosdika",
-    "bhosdiwala",
-    "bhosdiwale",
+"bhosdi",  
+"bhosdike",  
+"bhosdika",  
+"bhosdiwala",  
+"bhosdiwale",  
 
-    "jhatu",
-    "jhaatu",
+"jhatu",  
+"jhaatu",  
 
-    "bakchod",
-    "bakchodi",
+"bakchod",  
+"bakchodi",  
 
-    "chakka",
-    "chakkar",
+"chakka",  
+"chakkar",  
 
-    "nalayak",
+"nalayak",  
 
-    # English
-    "fuck",
-    "fucking",
-    "fucker",
-    "motherfucker",
-    "shit",
-    "shitty",
-    "bitch",
-    "bastard",
-    "asshole",
-    "dick",
-    "dickhead",
-    "pussy",
-    "cunt",
-    "whore",
-    "slut"
+# English  
+"fuck",  
+"fucking",  
+"fucker",  
+"motherfucker",  
+"shit",  
+"shitty",  
+"bitch",  
+"bastard",  
+"asshole",  
+"dick",  
+"dickhead",  
+"pussy",  
+"cunt",  
+"whore",  
+"slut"
+
 ]
 
+Sort longer words first so compound words are detected properly.
 
-# Sort longer words first so compound words are detected properly.
 BAD_WORDS = sorted(
-    set(BAD_WORDS),
-    key=len,
-    reverse=True
+set(BAD_WORDS),
+key=len,
+reverse=True
 )
-
 
 def normalize_text(text):
 
-    if not text:
-        return ""
+if not text:  
+    return ""  
 
-    text = text.lower()
+text = text.lower()  
 
-    # Common leetspeak replacements.
-    replacements = {
-        "@": "a",
-        "4": "a",
-        "0": "o",
-        "1": "i",
-        "!": "i",
-        "$": "s",
-        "3": "e",
-        "5": "s"
-    }
+# Common leetspeak replacements.  
+replacements = {  
+    "@": "a",  
+    "4": "a",  
+    "0": "o",  
+    "1": "i",  
+    "!": "i",  
+    "$": "s",  
+    "3": "e",  
+    "5": "s"  
+}  
 
-    for old, new in replacements.items():
-        text = text.replace(old, new)
+for old, new in replacements.items():  
+    text = text.replace(old, new)  
 
-    # Remove zero-width characters.
-    text = re.sub(
-        r"[\u200b-\u200f\uFEFF]",
-        "",
-        text
-    )
+# Remove zero-width characters.  
+text = re.sub(  
+    r"[\u200b-\u200f\uFEFF]",  
+    "",  
+    text  
+)  
 
-    # Convert punctuation/separators into spaces.
-    text = re.sub(
-        r"[^a-zA-Z\u0900-\u097F]+",
-        " ",
-        text
-    )
+# Convert punctuation/separators into spaces.  
+text = re.sub(  
+    r"[^a-zA-Z\u0900-\u097F]+",  
+    " ",  
+    text  
+)  
 
-    # Normalize repeated spaces.
-    text = re.sub(
-        r"\s+",
-        " ",
-        text
-    ).strip()
+# Normalize repeated spaces.  
+text = re.sub(  
+    r"\s+",  
+    " ",  
+    text  
+).strip()  
 
-    return text
-
+return text
 
 def contains_bad_language(text):
 
-    normalized = normalize_text(text)
+normalized = normalize_text(text)  
 
-    if not normalized:
-        return False
+if not normalized:  
+    return False  
 
-    # Direct phrase/word matching.
-    for word in BAD_WORDS:
+# Direct phrase/word matching.  
+for word in BAD_WORDS:  
 
-        pattern = r"(?<![a-zA-Z])" + re.escape(word) + r"(?![a-zA-Z])"
+    pattern = r"(?<![a-zA-Z])" + re.escape(word) + r"(?![a-zA-Z])"  
 
-        if re.search(pattern, normalized):
-            return True
+    if re.search(pattern, normalized):  
+        return True  
 
-    # Also check a compact version for cases like:
-    # "l o d a", "f.u.c.k", etc.
-    compact = re.sub(
-        r"[^a-zA-Z\u0900-\u097F]",
-        "",
-        normalized
-    )
+# Also check a compact version for cases like:  
+# "l o d a", "f.u.c.k", etc.  
+compact = re.sub(  
+    r"[^a-zA-Z\u0900-\u097F]",  
+    "",  
+    normalized  
+)  
 
-    for word in BAD_WORDS:
+for word in BAD_WORDS:  
 
-        compact_word = re.sub(
-            r"[^a-zA-Z\u0900-\u097F]",
-            "",
-            word
-        )
+    compact_word = re.sub(  
+        r"[^a-zA-Z\u0900-\u097F]",  
+        "",  
+        word  
+    )  
 
-        if len(compact_word) >= 4 and compact_word in compact:
-            return True
+    if len(compact_word) >= 4 and compact_word in compact:  
+        return True  
 
-    return False
+return False
 
+============================================================
 
-# ============================================================
-# WARNING UI
-# ============================================================
+WARNING UI
+
+============================================================
 
 def warning_text(user, warning_number):
 
-    first_name = user.first_name or "User"
+first_name = user.first_name or "User"  
 
-    return (
-        "<b>⚠️ COMMUNITY WARNING</b>\n\n"
-        f"👤 <b>User:</b> {first_name}\n"
-        "📌 <b>Reason:</b> Inappropriate language\n\n"
-        f"⚠️ <b>Warning:</b> {warning_number} / 3\n\n"
-        "<i>Please maintain respectful language.</i>\n"
-        "<i>Further violations may result in a ban.</i>"
-    )
-
+return (  
+    "<b>⚠️ COMMUNITY WARNING</b>\n\n"  
+    f"👤 <b>User:</b> {first_name}\n"  
+    "📌 <b>Reason:</b> Inappropriate language\n\n"  
+    f"⚠️ <b>Warning:</b> {warning_number} / 3\n\n"  
+    "<i>Please maintain respectful language.</i>\n"  
+    "<i>Further violations may result in a ban.</i>"  
+)
 
 def banned_text(user):
 
-    first_name = user.first_name or "User"
+first_name = user.first_name or "User"  
 
-    return (
-        "<b>🚫 USER BANNED</b>\n\n"
-        f"👤 <b>User:</b> {first_name}\n"
-        "📌 <b>Reason:</b> 3 warnings reached\n\n"
-        "<i>The user has been removed from this group "
-        "for repeated inappropriate language.</i>"
-    )
+return (  
+    "<b>🚫 USER BANNED</b>\n\n"  
+    f"👤 <b>User:</b> {first_name}\n"  
+    "📌 <b>Reason:</b> 3 warnings reached\n\n"  
+    "<i>The user has been removed from this group "  
+    "for repeated inappropriate language.</i>"  
+)
 
+============================================================
 
-# ============================================================
-# MODERATION HANDLER
-# ============================================================
+MODERATION HANDLER
+
+============================================================
 
 @bot.message_handler(
-    func=lambda message: (
-        message.chat.type in ["group", "supergroup"]
-        and message.from_user is not None
-        and not message.from_user.is_bot
-    ),
-    content_types=[
-        "text",
-        "photo",
-        "video",
-        "document",
-        "audio",
-        "voice",
-        "animation"
-    ]
+func=lambda message: (
+message.chat.type in ["group", "supergroup"]
+and message.from_user is not None
+and not message.from_user.is_bot
+),
+content_types=[
+"text",
+"photo",
+"video",
+"document",
+"audio",
+"voice",
+"animation"
+]
 )
 def moderation_handler(message):
 
-    user = message.from_user
+user = message.from_user  
 
-    # Owner is completely protected.
-    if user.id in OWNER_IDS:
-        return
+# Owner is completely protected.  
+if user.id in OWNER_IDS:  
+    return  
 
-    # Only text/caption needs profanity checking.
-    text = message.text or message.caption or ""
+# Only text/caption needs profanity checking.  
+text = message.text or message.caption or ""  
 
-    if not text:
-        return
+if not text:  
+    return  
 
-    # No bad language -> do nothing.
-    if not contains_bad_language(text):
-        return
+# No bad language -> do nothing.  
+if not contains_bad_language(text):  
+    return  
 
-    chat_id = message.chat.id
-    user_id = user.id
+chat_id = message.chat.id  
+user_id = user.id  
 
-    # Delete the abusive message.
-    try:
+# Delete the abusive message.  
+try:  
 
-        bot.delete_message(
-            chat_id,
-            message.message_id
-        )
+    bot.delete_message(  
+        chat_id,  
+        message.message_id  
+    )  
 
-    except Exception as error:
+except Exception as error:  
 
-        print(
-            f"Could not delete message: {error}"
-        )
+    print(  
+        f"Could not delete message: {error}"  
+    )  
 
-    # Increase warning count.
-    warning_number = add_warning(
-        chat_id,
-        user_id
+# Increase warning count.  
+warning_number = add_warning(  
+    chat_id,  
+    user_id  
+)  
+
+# ========================================================  
+# THIRD WARNING -> BAN  
+# ========================================================  
+
+if warning_number >= 3:  
+
+    try:  
+
+        bot.ban_chat_member(  
+            chat_id,  
+            user_id  
+        )  
+
+        bot.send_message(  
+            chat_id,  
+            banned_text(user)  
+        )  
+
+        print(  
+            f"BANNED: {user.id} "  
+            f"after {warning_number} warnings"  
+        )  
+
+    except Exception as error:  
+
+        print(  
+            f"Could not ban user {user.id}: {error}"  
+        )  
+
+        # If ban fails, tell the group that the  
+        # third warning was reached.  
+        try:  
+
+            bot.send_message(  
+                chat_id,  
+                (  
+                    "<b>🚫 MODERATION ACTION</b>\n\n"  
+                    f"👤 <b>User:</b> "  
+                    f"{user.first_name or 'User'}\n"  
+                    "⚠️ <b>Warnings:</b> 3 / 3\n\n"  
+                    "<i>The ban could not be completed. "  
+                    "Please check the bot's Ban Users permission.</i>"  
+                )  
+            )  
+
+        except Exception:  
+            pass  
+
+    return  
+
+# ========================================================  
+# FIRST / SECOND WARNING  
+# ========================================================  
+
+try:  
+
+    bot.send_message(  
+        chat_id,  
+        warning_text(  
+            user,  
+            warning_number  
+        )  
+    )  
+
+    print(  
+        f"WARNING {warning_number}/3: "  
+        f"{user.id}"  
+    )  
+
+except Exception as error:  
+
+    print(  
+        f"Could not send warning: {error}"  
     )
 
-    # ========================================================
-    # THIRD WARNING -> BAN
-    # ========================================================
+============================================================
 
-    if warning_number >= 3:
+MAIN WELCOME MENU
 
-        try:
-
-            bot.ban_chat_member(
-                chat_id,
-                user_id
-            )
-
-            bot.send_message(
-                chat_id,
-                banned_text(user)
-            )
-
-            print(
-                f"BANNED: {user.id} "
-                f"after {warning_number} warnings"
-            )
-
-        except Exception as error:
-
-            print(
-                f"Could not ban user {user.id}: {error}"
-            )
-
-            # If ban fails, tell the group that the
-            # third warning was reached.
-            try:
-
-                bot.send_message(
-                    chat_id,
-                    (
-                        "<b>🚫 MODERATION ACTION</b>\n\n"
-                        f"👤 <b>User:</b> "
-                        f"{user.first_name or 'User'}\n"
-                        "⚠️ <b>Warnings:</b> 3 / 3\n\n"
-                        "<i>The ban could not be completed. "
-                        "Please check the bot's Ban Users permission.</i>"
-                    )
-                )
-
-            except Exception:
-                pass
-
-        return
-
-    # ========================================================
-    # FIRST / SECOND WARNING
-    # ========================================================
-
-    try:
-
-        bot.send_message(
-            chat_id,
-            warning_text(
-                user,
-                warning_number
-            )
-        )
-
-        print(
-            f"WARNING {warning_number}/3: "
-            f"{user.id}"
-        )
-
-    except Exception as error:
-
-        print(
-            f"Could not send warning: {error}"
-        )
-
-
-# ============================================================
-# MAIN WELCOME MENU
-# ============================================================
+============================================================
 
 def welcome_menu():
 
-    markup = types.InlineKeyboardMarkup(row_width=2)
+markup = types.InlineKeyboardMarkup(row_width=2)  
 
-    help_button = types.InlineKeyboardButton(
-        "⌕  HELP",
-        callback_data="help"
-    )
+help_button = types.InlineKeyboardButton(  
+    "⌕  HELP",  
+    callback_data="help"  
+)  
 
-    about_button = types.InlineKeyboardButton(
-        "ⓘ  ABOUT",
-        callback_data="about"
-    )
+about_button = types.InlineKeyboardButton(  
+    "ⓘ  ABOUT",  
+    callback_data="about"  
+)  
 
-    markup.add(
-        help_button,
-        about_button
-    )
+markup.add(  
+    help_button,  
+    about_button  
+)  
 
-    return markup
+return markup
 
+============================================================
 
-# ============================================================
-# HELP MENU
-# ============================================================
+HELP MENU
+
+============================================================
 
 def help_menu():
 
-    markup = types.InlineKeyboardMarkup(row_width=2)
+markup = types.InlineKeyboardMarkup(row_width=2)  
 
-    guide_button = types.InlineKeyboardButton(
-        "▣  INSTALLATION GUIDE",
-        callback_data="guide"
-    )
+guide_button = types.InlineKeyboardButton(  
+    "▣  INSTALLATION GUIDE",  
+    callback_data="guide"  
+)  
 
-    about_button = types.InlineKeyboardButton(
-        "ⓘ  ABOUT",
-        callback_data="about"
-    )
+about_button = types.InlineKeyboardButton(  
+    "ⓘ  ABOUT",  
+    callback_data="about"  
+)  
 
-    back_button = types.InlineKeyboardButton(
-        "‹  BACK",
-        callback_data="home"
-    )
+back_button = types.InlineKeyboardButton(  
+    "‹  BACK",  
+    callback_data="home"  
+)  
 
-    markup.add(guide_button)
-    markup.add(about_button)
-    markup.add(back_button)
+markup.add(guide_button)  
+markup.add(about_button)  
+markup.add(back_button)  
 
-    return markup
+return markup
 
+============================================================
 
-# ============================================================
-# LANGUAGE SELECTION MENU
-# ============================================================
+LANGUAGE SELECTION MENU
+
+============================================================
 
 def language_menu():
 
-    markup = types.InlineKeyboardMarkup(row_width=2)
+markup = types.InlineKeyboardMarkup(row_width=2)  
 
-    english_button = types.InlineKeyboardButton(
-        "🇬🇧  ENGLISH",
-        callback_data="guide_en"
-    )
+english_button = types.InlineKeyboardButton(  
+    "🇬🇧  ENGLISH",  
+    callback_data="guide_en"  
+)  
 
-    hinglish_button = types.InlineKeyboardButton(
-        "🇮🇳  HINGLISH",
-        callback_data="guide_hi"
-    )
+hinglish_button = types.InlineKeyboardButton(  
+    "🇮🇳  HINGLISH",  
+    callback_data="guide_hi"  
+)  
 
-    back_button = types.InlineKeyboardButton(
-        "‹  BACK",
-        callback_data="help"
-    )
+back_button = types.InlineKeyboardButton(  
+    "‹  BACK",  
+    callback_data="help"  
+)  
 
-    markup.add(
-        english_button,
-        hinglish_button
-    )
+markup.add(  
+    english_button,  
+    hinglish_button  
+)  
 
-    markup.add(back_button)
+markup.add(back_button)  
 
-    return markup
+return markup
 
+============================================================
 
-# ============================================================
-# ACCESS MENU
-# ============================================================
+ACCESS MENU
+
+============================================================
 
 def access_menu():
 
-    markup = types.InlineKeyboardMarkup()
+markup = types.InlineKeyboardMarkup()  
 
-    access_button = types.InlineKeyboardButton(
-        "▣  OPEN PRIVATE ACCESS",
-        url=CHANNEL_LINK
-    )
+access_button = types.InlineKeyboardButton(  
+    "▣  OPEN PRIVATE ACCESS",  
+    url=CHANNEL_LINK  
+)  
 
-    back_button = types.InlineKeyboardButton(
-        "‹  BACK",
-        callback_data="home"
-    )
+back_button = types.InlineKeyboardButton(  
+    "‹  BACK",  
+    callback_data="home"  
+)  
 
-    markup.add(access_button)
-    markup.add(back_button)
+markup.add(access_button)  
+markup.add(back_button)  
 
-    return markup
+return markup
 
+============================================================
 
-# ============================================================
-# GENERIC BACK MENU
-# ============================================================
+GENERIC BACK MENU
+
+============================================================
 
 def back_menu():
 
-    markup = types.InlineKeyboardMarkup()
+markup = types.InlineKeyboardMarkup()  
 
-    back_button = types.InlineKeyboardButton(
-        "‹  BACK",
-        callback_data="home"
-    )
+back_button = types.InlineKeyboardButton(  
+    "‹  BACK",  
+    callback_data="home"  
+)  
 
-    markup.add(back_button)
+markup.add(back_button)  
 
-    return markup
+return markup
 
+============================================================
 
-# ============================================================
-# WELCOME TEXT
-# ============================================================
+WELCOME TEXT
+
+============================================================
 
 def get_welcome_text(first_name):
 
-    return (
-        f"<b>{BOT_NAME}</b>\n\n"
-        f"Welcome, <b>{first_name}</b>.\n\n"
-        "It's a pleasure to have you here.\n\n"
-        "You've reached the official interface. "
-        "Explore the available options below to learn "
-        "more about the service and its resources.\n\n"
-        "<b>Welcome aboard.</b>"
-    )
+return (  
+    f"<b>{BOT_NAME}</b>\n\n"  
+    f"Welcome, <b>{first_name}</b>.\n\n"  
+    "It's a pleasure to have you here.\n\n"  
+    "You've reached the official interface. "  
+    "Explore the available options below to learn "  
+    "more about the service and its resources.\n\n"  
+    "<b>Welcome aboard.</b>"  
+)
 
+============================================================
 
-# ============================================================
-# HELP TEXT
-# ============================================================
+HELP TEXT
+
+============================================================
 
 def get_help_text():
 
-    return (
-        f"<b>{BOT_NAME} • HELP</b>\n\n"
-        "Use the options below to navigate the bot.\n\n"
+return (  
+    f"<b>{BOT_NAME} • HELP</b>\n\n"  
+    "Use the options below to navigate the bot.\n\n"  
 
-        "<b>/start</b>\n"
-        "Open the main welcome screen.\n\n"
+    "<b>/start</b>\n"  
+    "Open the main welcome screen.\n\n"  
 
-        "<b>/hacks</b>\n"
-        "Open the private access panel.\n\n"
+    "<b>/hacks</b>\n"  
+    "Open the private access panel.\n\n"  
 
-        "<b>Installation Guide</b>\n"
-        "View the setup guide in English or Hinglish.\n\n"
+    "<b>Installation Guide</b>\n"  
+    "View the setup guide in English or Hinglish.\n\n"  
 
-        "<b>/about</b>\n"
-        "Learn more about QRIISHNA."
-    )
+    "<b>/about</b>\n"  
+    "Learn more about QRIISHNA."  
+)
 
+============================================================
 
-# ============================================================
-# INSTALLATION GUIDE LANGUAGE SCREEN
-# ============================================================
+INSTALLATION GUIDE LANGUAGE SCREEN
+
+============================================================
 
 def get_language_text():
 
-    return (
-        f"<b>{BOT_NAME} • INSTALLATION GUIDE</b>\n\n"
-        "Choose your preferred language to continue.\n\n"
-        "Select the language in which you would like "
-        "the installation process explained."
-    )
+return (  
+    f"<b>{BOT_NAME} • INSTALLATION GUIDE</b>\n\n"  
+    "Choose your preferred language to continue.\n\n"  
+    "Select the language in which you would like "  
+    "the installation process explained."  
+)
 
+============================================================
 
-# ============================================================
-# ENGLISH INSTALLATION GUIDE
-# ============================================================
+ENGLISH INSTALLATION GUIDE
+
+============================================================
 
 ENGLISH_GUIDE = [
 
-    (
-        "<b>STEP 01 • DOWNLOAD</b>\n\n"
-        "Download the required resource from the official "
-        "Telegram source.\n\n"
-        "Wait until the download is completely finished "
-        "before continuing.\n\n"
-        "<i>Do not open or move the file while it is still downloading.</i>"
-    ),
+(  
+    "<b>STEP 01 • DOWNLOAD</b>\n\n"  
+    "Download the required resource from the official "  
+    "Telegram source.\n\n"  
+    "Wait until the download is completely finished "  
+    "before continuing.\n\n"  
+    "<i>Do not open or move the file while it is still downloading.</i>"  
+),  
 
-    (
-        "<b>STEP 02 • LOCATE THE FILE</b>\n\n"
-        "Open your file manager and go to the device's "
-        "<b>Download</b> directory.\n\n"
-        "Locate the folder or archive containing the "
-        "resource you have just downloaded."
-    ),
+(  
+    "<b>STEP 02 • LOCATE THE FILE</b>\n\n"  
+    "Open your file manager and go to the device's "  
+    "<b>Download</b> directory.\n\n"  
+    "Locate the folder or archive containing the "  
+    "resource you have just downloaded."  
+),  
 
-    (
-        "<b>STEP 03 • EXTRACT THE PACKAGE</b>\n\n"
-        "Select the downloaded archive and choose the "
-        "<b>Extract</b> option.\n\n"
-        "Allow the extraction process to finish completely "
-        "before opening the extracted folder."
-    ),
+(  
+    "<b>STEP 03 • EXTRACT THE PACKAGE</b>\n\n"  
+    "Select the downloaded archive and choose the "  
+    "<b>Extract</b> option.\n\n"  
+    "Allow the extraction process to finish completely "  
+    "before opening the extracted folder."  
+),  
 
-    (
-        "<b>STEP 04 • CHECK THE CONTENT</b>\n\n"
-        "Open the extracted folder and verify that the "
-        "required files and folders are present.\n\n"
-        "If the package contains instructions or a README "
-        "file, review them before continuing."
-    ),
+(  
+    "<b>STEP 04 • CHECK THE CONTENT</b>\n\n"  
+    "Open the extracted folder and verify that the "  
+    "required files and folders are present.\n\n"  
+    "If the package contains instructions or a README "  
+    "file, review them before continuing."  
+),  
 
-    (
-        "<b>STEP 05 • INSTALL THE RESOURCE</b>\n\n"
-        "Follow the official instructions supplied with "
-        "the resource to place the files in their supported "
-        "destination.\n\n"
-        "Do not overwrite protected application files unless "
-        "the official documentation specifically requires it."
-    ),
+(  
+    "<b>STEP 05 • INSTALL THE RESOURCE</b>\n\n"  
+    "Follow the official instructions supplied with "  
+    "the resource to place the files in their supported "  
+    "destination.\n\n"  
+    "Do not overwrite protected application files unless "  
+    "the official documentation specifically requires it."  
+),  
 
-    (
-        "<b>STEP 06 • FINISH SETUP</b>\n\n"
-        "Once the supported installation process is complete, "
-        "close your file manager and launch the application normally.\n\n"
-        "If anything does not work correctly, restore your "
-        "original files and review the supplied documentation."
-    ),
+(  
+    "<b>STEP 06 • FINISH SETUP</b>\n\n"  
+    "Once the supported installation process is complete, "  
+    "close your file manager and launch the application normally.\n\n"  
+    "If anything does not work correctly, restore your "  
+    "original files and review the supplied documentation."  
+),  
 
-    (
-        "<b>IMPORTANT • BEFORE YOU CONTINUE</b>\n\n"
-        "Always keep a backup of your original files before "
-        "making changes.\n\n"
-        "Only install resources from sources you trust and "
-        "follow the application's supported installation "
-        "requirements."
-    )
+(  
+    "<b>IMPORTANT • BEFORE YOU CONTINUE</b>\n\n"  
+    "Always keep a backup of your original files before "  
+    "making changes.\n\n"  
+    "Only install resources from sources you trust and "  
+    "follow the application's supported installation "  
+    "requirements."  
+)
 
 ]
 
+============================================================
 
-# ============================================================
-# HINGLISH INSTALLATION GUIDE
-# ============================================================
+HINGLISH INSTALLATION GUIDE
+
+============================================================
 
 HINGLISH_GUIDE = [
 
-    (
-        "<b>STEP 01 • FILE DOWNLOAD KARO</b>\n\n"
-        "Sabse pehle required resource ko official Telegram "
-        "source se download karo.\n\n"
-        "Aage badhne se pehle ensure karo ki download "
-        "poori tarah complete ho chuka hai.\n\n"
-        "<i>Download complete hone se pehle file ko move ya open mat karo.</i>"
-    ),
+(  
+    "<b>STEP 01 • FILE DOWNLOAD KARO</b>\n\n"  
+    "Sabse pehle required resource ko official Telegram "  
+    "source se download karo.\n\n"  
+    "Aage badhne se pehle ensure karo ki download "  
+    "poori tarah complete ho chuka hai.\n\n"  
+    "<i>Download complete hone se pehle file ko move ya open mat karo.</i>"  
+),  
 
-    (
-        "<b>STEP 02 • FILE KO LOCATE KARO</b>\n\n"
-        "Apna file manager open karo aur device ke "
-        "<b>Download</b> folder me jao.\n\n"
-        "Ab jo resource tumne download kiya hai uska "
-        "folder ya archive locate karo."
-    ),
+(  
+    "<b>STEP 02 • FILE KO LOCATE KARO</b>\n\n"  
+    "Apna file manager open karo aur device ke "  
+    "<b>Download</b> folder me jao.\n\n"  
+    "Ab jo resource tumne download kiya hai uska "  
+    "folder ya archive locate karo."  
+),  
 
-    (
-        "<b>STEP 03 • PACKAGE EXTRACT KARO</b>\n\n"
-        "Downloaded archive ko select karo aur "
-        "<b>Extract</b> option choose karo.\n\n"
-        "Extraction complete hone tak wait karo. "
-        "Uske baad hi extracted folder open karo."
-    ),
+(  
+    "<b>STEP 03 • PACKAGE EXTRACT KARO</b>\n\n"  
+    "Downloaded archive ko select karo aur "  
+    "<b>Extract</b> option choose karo.\n\n"  
+    "Extraction complete hone tak wait karo. "  
+    "Uske baad hi extracted folder open karo."  
+),  
 
-    (
-        "<b>STEP 04 • FILES CHECK KARO</b>\n\n"
-        "Extracted folder open karke check karo ki required "
-        "files aur folders properly available hain.\n\n"
-        "Agar package ke andar README ya instructions di gayi hain, "
-        "to next step se pehle unhe zaroor read karo."
-    ),
+(  
+    "<b>STEP 04 • FILES CHECK KARO</b>\n\n"  
+    "Extracted folder open karke check karo ki required "  
+    "files aur folders properly available hain.\n\n"  
+    "Agar package ke andar README ya instructions di gayi hain, "  
+    "to next step se pehle unhe zaroor read karo."  
+),  
 
-    (
-        "<b>STEP 05 • RESOURCE INSTALL KARO</b>\n\n"
-        "Resource ke saath di gayi official instructions follow "
-        "karke files ko unke supported destination par place karo.\n\n"
-        "Protected application files ko bina official instructions "
-        "ke overwrite ya modify mat karo."
-    ),
+(  
+    "<b>STEP 05 • RESOURCE INSTALL KARO</b>\n\n"  
+    "Resource ke saath di gayi official instructions follow "  
+    "karke files ko unke supported destination par place karo.\n\n"  
+    "Protected application files ko bina official instructions "  
+    "ke overwrite ya modify mat karo."  
+),  
 
-    (
-        "<b>STEP 06 • SETUP COMPLETE KARO</b>\n\n"
-        "Supported installation complete hone ke baad file manager "
-        "close karo aur application ko normally open karo.\n\n"
-        "Agar resource properly work nahi karta, original files "
-        "restore karo aur provided documentation dobara check karo."
-    ),
+(  
+    "<b>STEP 06 • SETUP COMPLETE KARO</b>\n\n"  
+    "Supported installation complete hone ke baad file manager "  
+    "close karo aur application ko normally open karo.\n\n"  
+    "Agar resource properly work nahi karta, original files "  
+    "restore karo aur provided documentation dobara check karo."  
+),  
 
-    (
-        "<b>IMPORTANT • START KARNE SE PEHLE</b>\n\n"
-        "Kisi bhi file me change karne se pehle original files ka "
-        "backup zaroor rakho.\n\n"
-        "Sirf trusted source se resources install karo aur "
-        "application ki supported requirements ko follow karo."
-    )
+(  
+    "<b>IMPORTANT • START KARNE SE PEHLE</b>\n\n"  
+    "Kisi bhi file me change karne se pehle original files ka "  
+    "backup zaroor rakho.\n\n"  
+    "Sirf trusted source se resources install karo aur "  
+    "application ki supported requirements ko follow karo."  
+)
 
 ]
 
+============================================================
 
-# ============================================================
-# GUIDE NAVIGATION MENU
-# ============================================================
+GUIDE NAVIGATION MENU
+
+============================================================
 
 def guide_menu(language, page):
 
-    markup = types.InlineKeyboardMarkup(row_width=2)
+markup = types.InlineKeyboardMarkup(row_width=2)  
 
-    total_pages = (
-        len(ENGLISH_GUIDE)
-        if language == "en"
-        else len(HINGLISH_GUIDE)
-    )
+total_pages = (  
+    len(ENGLISH_GUIDE)  
+    if language == "en"  
+    else len(HINGLISH_GUIDE)  
+)  
 
-    if page > 0:
+if page > 0:  
 
-        previous_button = types.InlineKeyboardButton(
-            "‹  BACK",
-            callback_data=f"guide_{language}_{page - 1}"
-        )
+    previous_button = types.InlineKeyboardButton(  
+        "‹  BACK",  
+        callback_data=f"guide_{language}_{page - 1}"  
+    )  
 
-    else:
+else:  
 
-        previous_button = types.InlineKeyboardButton(
-            "‹  LANGUAGE",
-            callback_data="guide"
-        )
+    previous_button = types.InlineKeyboardButton(  
+        "‹  LANGUAGE",  
+        callback_data="guide"  
+    )  
 
-    if page < total_pages - 1:
+if page < total_pages - 1:  
 
-        next_button = types.InlineKeyboardButton(
-            "NEXT  ›",
-            callback_data=f"guide_{language}_{page + 1}"
-        )
+    next_button = types.InlineKeyboardButton(  
+          "NEXT  ›",
+            callback_data=f"guide_{language}_{page + 1}"
+        )
 
-        markup.add(
-            previous_button,
-            next_button
-        )
+        markup.add(
+            previous_button,
+            next_button
+        )
 
-    else:
+    else:
 
-        markup.add(previous_button)
+        markup.add(previous_button)
 
-    return markup
+    return markup
 
+============================================================
 
-# ============================================================
-# GUIDE PAGE TEXT
-# ============================================================
+GUIDE PAGE TEXT
+
+============================================================
 
 def get_guide_page(language, page):
 
-    if language == "en":
+    if language == "en":
 
-        pages = ENGLISH_GUIDE
-        language_name = "ENGLISH"
+        pages = ENGLISH_GUIDE
+        language_name = "ENGLISH"
 
-    else:
+    else:
 
-        pages = HINGLISH_GUIDE
-        language_name = "HINGLISH"
+        pages = HINGLISH_GUIDE
+        language_name = "HINGLISH"
 
-    total_pages = len(pages)
+    total_pages = len(pages)
 
-    page_text = pages[page]
+    page_text = pages[page]
 
-    return (
-        f"<b>{BOT_NAME} • INSTALLATION GUIDE</b>\n"
-        f"<i>{language_name} • {page + 1}/{total_pages}</i>\n\n"
-        f"{page_text}"
-    )
+    return (
+        f"<b>{BOT_NAME} • INSTALLATION GUIDE</b>\n"
+        f"<i>{language_name} • {page + 1}/{total_pages}</i>\n\n"
+        f"{page_text}"
+    )
 
+============================================================
 
-# ============================================================
-# /START
-# ============================================================
+/START
+
+============================================================
 
 @bot.message_handler(commands=["start"])
 def start(message):
 
-    first_name = message.from_user.first_name or "there"
+    first_name = message.from_user.first_name or "there"
 
-    bot.send_message(
-        message.chat.id,
-        get_welcome_text(first_name),
-        reply_markup=welcome_menu()
-    )
+    bot.send_message(
+        message.chat.id,
+        get_welcome_text(first_name),
+        reply_markup=welcome_menu()
+    )
 
+============================================================
 
-# ============================================================
-# /HACKS
-# ============================================================
+/HACKS
+
+============================================================
 
 @bot.message_handler(commands=["hacks"])
 def hacks(message):
 
-    text = (
-        f"<b>{BOT_NAME} ACCESS</b>\n\n"
-        "Access request received.\n\n"
-        "The private resource area is now available "
-        "for you to open.\n\n"
-        "Use the secure access point below to continue."
-    )
+    text = (
+        f"<b>{BOT_NAME} ACCESS</b>\n\n"
+        "Access request received.\n\n"
+        "The private resource area is now available "
+        "for you to open.\n\n"
+        "Use the secure access point below to continue."
+    )
 
-    bot.send_message(
-        message.chat.id,
-        text,
-        reply_markup=access_menu()
-    )
+    bot.send_message(
+        message.chat.id,
+        text,
+        reply_markup=access_menu()
+    )
 
+============================================================
 
-# ============================================================
-# /HELP
-# ============================================================
+/HELP
+
+============================================================
 
 @bot.message_handler(commands=["help"])
 def help_command(message):
 
-    bot.send_message(
-        message.chat.id,
-        get_help_text(),
-        reply_markup=help_menu()
-    )
+    bot.send_message(
+        message.chat.id,
+        get_help_text(),
+        reply_markup=help_menu()
+    )
 
+============================================================
 
-# ============================================================
-# /ABOUT
-# ============================================================
+/ABOUT
+
+============================================================
 
 @bot.message_handler(commands=["about"])
 def about_command(message):
 
-    text = (
-        f"<b>{BOT_NAME}</b>\n\n"
-        "A clean and dedicated Telegram interface "
-        "designed for simple, direct and controlled access.\n\n"
+    text = (
+        f"<b>{BOT_NAME}</b>\n\n"
+        "A clean and dedicated Telegram interface "
+        "designed for simple, direct and controlled access.\n\n"
 
-        "<b>VERSION</b>\n"
-        f"{BOT_VERSION}\n\n"
+        "<b>VERSION</b>\n"
+        f"{BOT_VERSION}\n\n"
 
-        "<b>STATUS</b>\n"
-        "Online"
-    )
+        "<b>STATUS</b>\n"
+        "Online"
+    )
 
-    bot.send_message(
-        message.chat.id,
-        text,
-        reply_markup=back_menu()
-    )
+    bot.send_message(
+        message.chat.id,
+        text,
+        reply_markup=back_menu()
+    )
 
+============================================================
 
-# ============================================================
-# /FILE
-# ============================================================
+/FILE
+
+============================================================
 
 @bot.message_handler(commands=["file"])
 def file_command(message):
 
-    text = (
-        f"<b>{BOT_NAME} ACCESS</b>\n\n"
-        "The requested resource is available "
-        "through the private access panel.\n\n"
-        "Use <b>/hacks</b> to continue."
-    )
+    text = (
+        f"<b>{BOT_NAME} ACCESS</b>\n\n"
+        "The requested resource is available "
+        "through the private access panel.\n\n"
+        "Use <b>/hacks</b> to continue."
+    )
 
-    bot.send_message(
-        message.chat.id,
-        text,
-        reply_markup=back_menu()
-    )
+    bot.send_message(
+        message.chat.id,
+        text,
+        reply_markup=back_menu()
+    )
 
+============================================================
 
-# ============================================================
-# MAIN HELP BUTTON
-# ============================================================
+MAIN HELP BUTTON
+
+============================================================
 
 @bot.callback_query_handler(
-    func=lambda call: call.data == "help"
+    func=lambda call: call.data == "help"
 )
 def help_callback(call):
 
-    bot.answer_callback_query(call.id)
+    bot.answer_callback_query(call.id)
 
-    bot.edit_message_text(
-        get_help_text(),
-        call.message.chat.id,
-        call.message.message_id,
-        reply_markup=help_menu()
-    )
+    bot.edit_message_text(
+        get_help_text(),
+        call.message.chat.id,
+        call.message.message_id,
+        reply_markup=help_menu()
+    )
 
+============================================================
 
-# ============================================================
-# ABOUT BUTTON
-# ============================================================
+ABOUT BUTTON
+
+============================================================
 
 @bot.callback_query_handler(
-    func=lambda call: call.data == "about"
+    func=lambda call: call.data == "about"
 )
 def about_callback(call):
 
-    text = (
-        f"<b>{BOT_NAME}</b>\n\n"
-        "A clean and dedicated Telegram interface "
-        "designed for simple, direct and controlled access.\n\n"
+    text = (
+        f"<b>{BOT_NAME}</b>\n\n"
+        "A clean and dedicated Telegram interface "
+        "designed for simple, direct and controlled access.\n\n"
 
-        "<b>VERSION</b>\n"
-        f"{BOT_VERSION}\n\n"
+        "<b>VERSION</b>\n"
+        f"{BOT_VERSION}\n\n"
 
-        "<b>STATUS</b>\n"
-        "Online"
-    )
+        "<b>STATUS</b>\n"
+        "Online"
+    )
 
-    bot.answer_callback_query(call.id)
+    bot.answer_callback_query(call.id)
 
-    bot.edit_message_text(
-        text,
-        call.message.chat.id,
-        call.message.message_id,
-        reply_markup=back_menu()
-    )
+    bot.edit_message_text(
+        text,
+        call.message.chat.id,
+        call.message.message_id,
+        reply_markup=back_menu()
+    )
 
+============================================================
 
-# ============================================================
-# INSTALLATION GUIDE BUTTON
-# ============================================================
+INSTALLATION GUIDE BUTTON
+
+============================================================
 
 @bot.callback_query_handler(
-    func=lambda call: call.data == "guide"
+    func=lambda call: call.data == "guide"
 )
 def guide_callback(call):
 
-    bot.answer_callback_query(call.id)
+    bot.answer_callback_query(call.id)
 
-    bot.edit_message_text(
-        get_language_text(),
-        call.message.chat.id,
-        call.message.message_id,
-        reply_markup=language_menu()
-    )
+    bot.edit_message_text(
+        get_language_text(),
+        call.message.chat.id,
+        call.message.message_id,
+        reply_markup=language_menu()
+    )
 
+============================================================
 
-# ============================================================
-# ENGLISH GUIDE START
-# ============================================================
+ENGLISH GUIDE START
+
+============================================================
 
 @bot.callback_query_handler(
-    func=lambda call: call.data == "guide_en"
+    func=lambda call: call.data == "guide_en"
 )
 def guide_english_callback(call):
 
-    bot.answer_callback_query(call.id)
+    bot.answer_callback_query(call.id)
 
-    bot.edit_message_text(
-        get_guide_page("en", 0),
-        call.message.chat.id,
-        call.message.message_id,
-        reply_markup=guide_menu("en", 0)
-    )
+    bot.edit_message_text(
+        get_guide_page("en", 0),
+        call.message.chat.id,
+        call.message.message_id,
+        reply_markup=guide_menu("en", 0)
+    )
 
+============================================================
 
-# ============================================================
-# HINGLISH GUIDE START
-# ============================================================
+HINGLISH GUIDE START
+
+============================================================
 
 @bot.callback_query_handler(
-    func=lambda call: call.data == "guide_hi"
+    func=lambda call: call.data == "guide_hi"
 )
 def guide_hinglish_callback(call):
 
-    bot.answer_callback_query(call.id)
+    bot.answer_callback_query(call.id)
 
-    bot.edit_message_text(
-        get_guide_page("hi", 0),
-        call.message.chat.id,
-        call.message.message_id,
-        reply_markup=guide_menu("hi", 0)
-    )
+    bot.edit_message_text(
+        get_guide_page("hi", 0),
+        call.message.chat.id,
+        call.message.message_id,
+        reply_markup=guide_menu("hi", 0)
+    )
 
+============================================================
 
-# ============================================================
-# GUIDE PAGE NAVIGATION
-# ============================================================
+GUIDE PAGE NAVIGATION
+
+============================================================
 
 @bot.callback_query_handler(
-    func=lambda call: call.data.startswith("guide_en_")
+    func=lambda call: call.data.startswith("guide_en_")
 )
 def guide_english_pages(call):
 
-    try:
+    try:
 
-        page = int(
-            call.data.replace("guide_en_", "")
-        )
+        page = int(
+            call.data.replace("guide_en_", "")
+        )
 
-    except ValueError:
+    except ValueError:
 
-        bot.answer_callback_query(call.id)
-        return
+        bot.answer_callback_query(call.id)
+        return
 
-    if page < 0 or page >= len(ENGLISH_GUIDE):
+    if page < 0 or page >= len(ENGLISH_GUIDE):
 
-        bot.answer_callback_query(
-            call.id,
-            "This page is not available."
-        )
+        bot.answer_callback_query(
+            call.id,
+            "This page is not available."
+        )
 
-        return
+        return
 
-    bot.answer_callback_query(call.id)
+    bot.answer_callback_query(call.id)
 
-    bot.edit_message_text(
-        get_guide_page("en", page),
-        call.message.chat.id,
-        call.message.message_id,
-        reply_markup=guide_menu("en", page)
-    )
+    bot.edit_message_text(
+        get_guide_page("en", page),
+        call.message.chat.id,
+        call.message.message_id,
+        reply_markup=guide_menu("en", page)
+    )
 
+============================================================
 
-# ============================================================
-# HINGLISH GUIDE PAGE NAVIGATION
-# ============================================================
+HINGLISH GUIDE PAGE NAVIGATION
+
+============================================================
 
 @bot.callback_query_handler(
-    func=lambda call: call.data.startswith("guide_hi_")
+    func=lambda call: call.data.startswith("guide_hi_")
 )
 def guide_hinglish_pages(call):
 
-    try:
+    try:
 
-        page = int(
-            call.data.replace("guide_hi_", "")
-        )
+        page = int(
+            call.data.replace("guide_hi_", "")
+        )
 
-    except ValueError:
+    except ValueError:
 
-        bot.answer_callback_query(call.id)
-        return
+        bot.answer_callback_query(call.id)
+        return
 
-    if page < 0 or page >= len(HINGLISH_GUIDE):
+    if page < 0 or page >= len(HINGLISH_GUIDE):
 
-        bot.answer_callback_query(
-            call.id,
-            "This page is not available."
-        )
+        bot.answer_callback_query(
+            call.id,
+            "This page is not available."
+        )
 
-        return
+        return
 
-    bot.answer_callback_query(call.id)
+    bot.answer_callback_query(call.id)
 
-    bot.edit_message_text(
-        get_guide_page("hi", page),
-        call.message.chat.id,
-        call.message.message_id,
-        reply_markup=guide_menu("hi", page)
-    )
+    bot.edit_message_text(
+        get_guide_page("hi", page),
+        call.message.chat.id,
+        call.message.message_id,
+        reply_markup=guide_menu("hi", page)
+    )
 
+============================================================
 
-# ============================================================
-# BACK TO HOME
-# ============================================================
+BACK TO HOME
+
+============================================================
 
 @bot.callback_query_handler(
-    func=lambda call: call.data == "home"
+    func=lambda call: call.data == "home"
 )
 def home_callback(call):
 
-    first_name = call.from_user.first_name or "there"
+    first_name = call.from_user.first_name or "there"
 
-    bot.answer_callback_query(call.id)
+    bot.answer_callback_query(call.id)
 
-    bot.edit_message_text(
-        get_welcome_text(first_name),
-        call.message.chat.id,
-        call.message.message_id,
-        reply_markup=welcome_menu()
-    )
+    bot.edit_message_text(
+        get_welcome_text(first_name),
+        call.message.chat.id,
+        call.message.message_id,
+        reply_markup=welcome_menu()
+    )
 
+============================================================
 
-# ============================================================
-# TELEGRAM COMMAND MENU
-# ============================================================
+TELEGRAM COMMAND MENU
+
+============================================================
 
 def set_commands():
 
-    commands = [
+    commands = [
 
-        types.BotCommand(
-            "start",
-            "Open QRIISHNA"
-        ),
+        types.BotCommand(
+            "start",
+            "Open QRIISHNA"
+        ),
 
-        types.BotCommand(
-            "hacks",
-            "Open private access"
-        ),
+        types.BotCommand(
+            "hacks",
+            "Open private access"
+        ),
 
-        types.BotCommand(
-            "help",
-            "View help and installation guide"
-        ),
+        types.BotCommand(
+            "help",
+            "View help and installation guide"
+        ),
 
-        types.BotCommand(
-            "about",
-            "About QRIISHNA"
-        ),
+        types.BotCommand(
+            "about",
+            "About QRIISHNA"
+        ),
 
-        types.BotCommand(
-            "file",
-            "Access information"
-        )
+        types.BotCommand(
+            "file",
+            "Access information"
+        )
 
-    ]
+    ]
 
-    bot.set_my_commands(commands)
+    bot.set_my_commands(commands)
 
+============================================================
 
-# ============================================================
-# START APPLICATION
-# ============================================================
+START APPLICATION
 
-if __name__ == "__main__":
+============================================================
 
-    print("----------------------------------------")
-    print("          QRIISHNA INITIALIZING")
-    print("----------------------------------------")
+if name == "main":
 
-    # Initialize warning database.
-    init_database()
+    print("----------------------------------------")
+    print("          QRIISHNA INITIALIZING")
+    print("----------------------------------------")
 
-    set_commands()
+    # Initialize warning database.
+    init_database()
 
-    threading.Thread(
-        target=run_flask,
-        daemon=True
-    ).start()
+    set_commands()
 
-    print("Flask server : ONLINE")
-    print("Telegram bot : ONLINE")
-    print("Bot name     : QRIISHNA")
-    print("Moderation   : ENABLED")
-    print("Warnings     : 3 STRIKES")
-    print("Owner ID     : 1332494807")
-    print("----------------------------------------")
+    threading.Thread(
+        target=run_flask,
+        daemon=True
+    ).start()
 
-    bot.infinity_polling(
-        timeout=60,
-        long_polling_timeout=60
-        )
-     
+    print("Flask server : ONLINE")
+    print("Telegram bot : ONLINE")
+    print("Bot name     : QRIISHNA")
+    print("Moderation   : ENABLED")
+    print("Warnings     : 3 STRIKES")
+    print("Owner ID     : 1332494807")
+    print("----------------------------------------")
+
+    bot.infinity_polling(
+        timeout=60,
+        long_polling_timeout=60
+    )
