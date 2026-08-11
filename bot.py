@@ -2,7 +2,6 @@ import os
 import re
 import sqlite3
 import threading
-import html
 import time
 
 import telebot
@@ -34,7 +33,7 @@ start_time = time.time()
 
 
 # ============================================================
-# TOKEN VALIDATION & BOT INITIALIZATION WITH PARSE_MODE
+# TOKEN VALIDATION & BOT INITIALIZATION
 # ============================================================
 
 if not TOKEN:
@@ -224,7 +223,7 @@ def send_first_time_welcome(message):
     if not is_first_message:
         return
 
-    name = html.escape(user.first_name or "User")
+    name = user.first_name or "User"
     text = (
         "<b>✦ QRISHNA SYSTEM</b>\n\n"
         f"Welcome <b>{name}</b> to the official BGMI Resource Portal.\n"
@@ -301,7 +300,7 @@ def contains_bad_language(text):
 
 
 def warning_text(user, number):
-    name = html.escape(user.first_name or "User")
+    name = user.first_name or "User"
     return (
         "<b>SYSTEM WARNING</b>\n"
         "────────────────────────\n"
@@ -313,7 +312,7 @@ def warning_text(user, number):
 
 
 def banned_text(user):
-    name = html.escape(user.first_name or "User")
+    name = user.first_name or "User"
     return (
         "<b>USER BANNED</b>\n"
         "────────────────────────\n"
@@ -324,7 +323,7 @@ def banned_text(user):
 
 
 # ============================================================
-# UI MENUS & CLEAN MINIMAL TEXTS (WITH MONOSPACE CODE TAGS)
+# UI MENUS & HTML CODE TAGS
 # ============================================================
 
 def start_menu():
@@ -417,7 +416,7 @@ def premium_menu():
 
 
 def get_access_text(user_id, first_name):
-    name = html.escape(first_name or "User")
+    name = first_name or "User"
     return (
         "<b>VIP USER STATUS & LICENSE</b>\n"
         "────────────────────────\n"
@@ -520,7 +519,7 @@ def guide_menu(language, page):
 
 
 # ============================================================
-# COMMAND HANDLERS WITH AUTO DELETE & PARSE_MODE
+# COMMAND HANDLERS
 # ============================================================
 
 @bot.message_handler(commands=["start", "dashboard"])
@@ -669,7 +668,7 @@ def moderation_handler(message):
 
 
 # ============================================================
-# CALLBACK QUERY HANDLERS WITH PARSE_MODE
+# CALLBACK QUERY HANDLERS WITH HTML
 # ============================================================
 
 @bot.callback_query_handler(func=lambda call: call.data == "home")
