@@ -744,10 +744,10 @@ def support_command(message):
 
 
 # ============================================================
-# PAYMENT & DETAILS CALLBACK HANDLERS
+# PAYMENT & DETAILS CALLBACK HANDLERS (FIXED BINDING)
 # ============================================================
 
-@bot.callback_query_handler(func=lambda call: call.data in ["det_p1", "det_p2", "det_p3"])
+@bot.callback_query_handler(func=lambda call: call.data.startswith("det_"))
 def process_details_selection(call):
     try:
         bot.answer_callback_query(call.id)
@@ -757,6 +757,8 @@ def process_details_selection(call):
             text, code = get_details_p2(), "p2"
         elif call.data == "det_p3":
             text, code = get_details_p3(), "p3"
+        else:
+            return
 
         bot.edit_message_text(
             text,
@@ -769,7 +771,7 @@ def process_details_selection(call):
         print(f"Details error: {e}")
 
 
-@bot.callback_query_handler(func=lambda call: call.data in ["pay_p1", "pay_p2", "pay_p3"])
+@bot.callback_query_handler(func=lambda call: call.data.startswith("pay_"))
 def process_payment_redirection(call):
     try:
         bot.answer_callback_query(call.id)
@@ -780,6 +782,8 @@ def process_payment_redirection(call):
             pack_name, amount = "PRO COMBAT PACK", "1500"
         elif call.data == "pay_p3":
             pack_name, amount = "YOUTUBER STREAMER PACK", "750"
+        else:
+            return
 
         caption_text = (
             "<b>OFFICIAL INVOICE & GATEWAY</b>\n"
