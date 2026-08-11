@@ -20,7 +20,7 @@ BOT_NAME = "QRISHNA VIP"
 BOT_VERSION = "4.0 PRO"
 
 CHANNEL_LINK = "https://t.me/+GHjJmfql0o02YWZl"
-ADMIN_CONTACT = "t.me/qrishna"
+ADMIN_CONTACT = "https://t.me/qrishna"
 
 OWNER_IDS = {
     1332494807
