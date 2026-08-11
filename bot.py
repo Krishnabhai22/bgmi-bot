@@ -207,7 +207,7 @@ def send_first_time_welcome(message):
     )
 
     try:
-        bot.send_message(chat_id, text)
+        bot.send_message(chat_id, text, parse_mode="HTML")
     except Exception:
         pass
 
@@ -508,8 +508,9 @@ def start(message):
     bot.send_message(
         message.chat.id,
         get_start_text(),
-        reply_markup=start_menu()
-    )
+        reply_markup=start_menu(),
+        parse_mode="HTML"
+        )
 
 
 @bot.message_handler(commands=["files"])
@@ -517,7 +518,8 @@ def files_command(message):
     bot.send_message(
         message.chat.id,
         get_files_text(),
-        reply_markup=files_menu()
+        reply_markup=files_menu(),
+        parse_mode="HTML"
     )
 
 
@@ -526,7 +528,8 @@ def updates_command(message):
     bot.send_message(
         message.chat.id,
         get_updates_text(),
-        reply_markup=back_menu()
+        reply_markup=back_menu(),
+        parse_mode="HTML"
     )
 
 
@@ -535,7 +538,8 @@ def tutorial_command(message):
     bot.send_message(
         message.chat.id,
         get_language_text(),
-        reply_markup=language_menu()
+        reply_markup=language_menu(),
+        parse_mode="HTML"
     )
 
 
@@ -544,7 +548,8 @@ def premium_command(message):
     bot.send_message(
         message.chat.id,
         get_premium_text(),
-        reply_markup=premium_menu()
+        reply_markup=premium_menu(),
+        parse_mode="HTML"
     )
 
 
@@ -554,7 +559,8 @@ def access_command(message):
     bot.send_message(
         message.chat.id,
         get_access_text(user.id, user.first_name),
-        reply_markup=back_menu()
+        reply_markup=back_menu(),
+        parse_mode="HTML"
     )
 
 
@@ -563,7 +569,8 @@ def support_command(message):
     bot.send_message(
         message.chat.id,
         get_support_text(),
-        reply_markup=support_menu()
+        reply_markup=support_menu(),
+        parse_mode="HTML"
     )
 
 
@@ -578,7 +585,7 @@ def broadcast_command(message):
 
     msg_text = message.text.replace("/broadcast", "").strip()
     if not msg_text:
-        bot.reply_to(message, "Usage: <code>/broadcast Your Announcement Text</code>")
+        bot.reply_to(message, "Usage: <code>/broadcast Your Announcement Text</code>", parse_mode="HTML")
         return
 
     with db_lock:
@@ -591,12 +598,12 @@ def broadcast_command(message):
     success, failed = 0, 0
     for u in users:
         try:
-            bot.send_message(u[0], f"<b>PORTAL ANNOUNCEMENT</b>\n────────────────────────\n{msg_text}")
+            bot.send_message(u[0], f"<b>PORTAL ANNOUNCEMENT</b>\n────────────────────────\n{msg_text}", parse_mode="HTML")
             success += 1
         except Exception:
             failed += 1
 
-    bot.reply_to(message, f"Broadcast Completed!\nSuccess: <code>{success}</code> | Failed: <code>{failed}</code>")
+    bot.reply_to(message, f"Broadcast Completed!\nSuccess: <code>{success}</code> | Failed: <code>{failed}</code>", parse_mode="HTML")
 
 
 # ============================================================
@@ -635,13 +642,13 @@ def moderation_handler(message):
     if warning_number >= 3:
         try:
             bot.ban_chat_member(message.chat.id, user.id)
-            bot.send_message(message.chat.id, banned_text(user))
+            bot.send_message(message.chat.id, banned_text(user), parse_mode="HTML")
         except Exception:
             pass
         return
 
     try:
-        bot.send_message(message.chat.id, warning_text(user, warning_number))
+        bot.send_message(message.chat.id, warning_text(user, warning_number), parse_mode="HTML")
     except Exception:
         pass
 
@@ -658,7 +665,8 @@ def home_callback(call):
             get_start_text(),
             call.message.chat.id,
             call.message.message_id,
-            reply_markup=start_menu()
+            reply_markup=start_menu(),
+            parse_mode="HTML"
         )
     except Exception:
         pass
@@ -672,7 +680,8 @@ def cb_files(call):
             get_files_text(),
             call.message.chat.id,
             call.message.message_id,
-            reply_markup=files_menu()
+            reply_markup=files_menu(),
+            parse_mode="HTML"
         )
     except Exception:
         pass
@@ -686,7 +695,8 @@ def cb_updates(call):
             get_updates_text(),
             call.message.chat.id,
             call.message.message_id,
-            reply_markup=back_menu()
+            reply_markup=back_menu(),
+            parse_mode="HTML"
         )
     except Exception:
         pass
@@ -700,7 +710,8 @@ def cb_tutorial(call):
             get_language_text(),
             call.message.chat.id,
             call.message.message_id,
-            reply_markup=language_menu()
+            reply_markup=language_menu(),
+            parse_mode="HTML"
         )
     except Exception:
         pass
@@ -714,7 +725,8 @@ def cb_premium(call):
             get_premium_text(),
             call.message.chat.id,
             call.message.message_id,
-            reply_markup=premium_menu()
+            reply_markup=premium_menu(),
+            parse_mode="HTML"
         )
     except Exception:
         pass
@@ -728,7 +740,8 @@ def cb_support(call):
             get_support_text(),
             call.message.chat.id,
             call.message.message_id,
-            reply_markup=support_menu()
+            reply_markup=support_menu(),
+            parse_mode="HTML"
         )
     except Exception:
         pass
@@ -742,7 +755,8 @@ def guide_english_callback(call):
             get_guide_page("en", 0),
             call.message.chat.id,
             call.message.message_id,
-            reply_markup=guide_menu("en", 0)
+            reply_markup=guide_menu("en", 0),
+            parse_mode="HTML"
         )
     except Exception:
         pass
@@ -756,7 +770,8 @@ def guide_hinglish_callback(call):
             get_guide_page("hi", 0),
             call.message.chat.id,
             call.message.message_id,
-            reply_markup=guide_menu("hi", 0)
+            reply_markup=guide_menu("hi", 0),
+            parse_mode="HTML"
         )
     except Exception:
         pass
@@ -776,7 +791,8 @@ def guide_english_pages(call):
             get_guide_page("en", page),
             call.message.chat.id,
             call.message.message_id,
-            reply_markup=guide_menu("en", page)
+            reply_markup=guide_menu("en", page),
+            parse_mode="HTML"
         )
     except Exception:
         pass
@@ -796,7 +812,8 @@ def guide_hinglish_pages(call):
             get_guide_page("hi", page),
             call.message.chat.id,
             call.message.message_id,
-            reply_markup=guide_menu("hi", page)
+            reply_markup=guide_menu("hi", page),
+            parse_mode="HTML"
         )
     except Exception:
         pass
