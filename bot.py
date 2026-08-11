@@ -1,4 +1,6 @@
 import os
+import re
+import json
 import threading
 
 import telebot
@@ -19,6 +21,406 @@ CHANNEL_LINK = "https://t.me/+GHjJmfql0o02YWZl"
 BOT_NAME = "QRIISHNA"
 BOT_VERSION = "1.0"
 
+# ============================================================
+# OWNER
+# ============================================================
+
+OWNER_ID = 1332494807
+
+
+# ============================================================
+# WARNING SYSTEM
+# ============================================================
+
+WARNING_FILE = "warnings.json"
+
+warning_lock = threading.Lock()
+
+
+def load_warnings():
+
+    if not os.path.exists(WARNING_FILE):
+        return {}
+
+    try:
+
+        with open(
+            WARNING_FILE,
+            "r",
+            encoding="utf-8"
+        ) as file:
+
+            data = json.load(file)
+
+            if isinstance(data, dict):
+                return data
+
+    except Exception:
+        pass
+
+    return {}
+
+
+warnings = load_warnings()
+
+
+def save_warnings():
+
+    with warning_lock:
+
+        try:
+
+            with open(
+                WARNING_FILE,
+                "w",
+                encoding="utf-8"
+            ) as file:
+
+                json.dump(
+                    warnings,
+                    file,
+                    ensure_ascii=False,
+                    indent=2
+                )
+
+        except Exception as error:
+
+            print(
+                f"Warning save error: {error}"
+            )
+
+
+# ============================================================
+# BAD WORD FILTER
+#
+# Common English + Hindi/Hinglish abusive words.
+# ============================================================
+
+BAD_WORDS = [
+
+    # English
+    "fuck",
+    "fucker",
+    "fucking",
+    "motherfucker",
+    "shit",
+    "bullshit",
+    "bitch",
+    "bastard",
+    "asshole",
+    "dumbass",
+    "dickhead",
+    "dick",
+    "pussy",
+    "cunt",
+    "whore",
+    "slut",
+
+    # Hindi / Hinglish
+    "madarchod",
+    "maderchod",
+    "madarchood",
+    "madrchod",
+    "mc",
+    "behenchod",
+    "bhenchod",
+    "behench*d",
+    "bhosdike",
+    "bhosdika",
+    "bhosdi",
+    "bhosda",
+    "chutiya",
+    "chutiye",
+    "chutia",
+    "chutiyapa",
+    "chut",
+    "gandu",
+    "gaand",
+    "gand",
+    "randi",
+    "harami",
+    "haraami",
+    "kamina",
+    "kamine",
+    "kaminey",
+    "kutte",
+    "kutta",
+    "kutti",
+    "saala",
+    "sala",
+    "saale",
+    "suar",
+    "suwar",
+    "lavde",
+    "lavda",
+    "lodu",
+    "laude",
+    "lauda",
+    "lund",
+    "lulli",
+    "jhatu",
+    "jhaatu",
+    "bakchod",
+    "bakchodi",
+    "rand",
+    "randi",
+    "teri ma",
+    "teri maa",
+    "teri behen",
+    "teri bahin"
+]
+
+
+def normalize_text(text):
+
+    text = text.lower()
+
+    # Common symbols/spaces remove
+    text = re.sub(
+        r"[\s\W_]+",
+        "",
+        text,
+        flags=re.UNICODE
+    )
+
+    return text
+
+
+def contains_bad_word(text):
+
+    if not text:
+        return False
+
+    lower_text = text.lower()
+
+    # Normal text check
+    for word in BAD_WORDS:
+
+        if " " in word:
+
+            if word in lower_text:
+                return True
+
+        else:
+
+            pattern = (
+                r"(?<![\w])"
+                + re.escape(word)
+                + r"(?![\w])"
+            )
+
+            if re.search(
+                pattern,
+                lower_text,
+                flags=re.IGNORECASE
+            ):
+
+                return True
+
+    # Obfuscated text check
+    normalized_text = normalize_text(text)
+
+    for word in BAD_WORDS:
+
+        normalized_word = normalize_text(word)
+
+        if len(normalized_word) >= 3:
+
+            if normalized_word in normalized_text:
+                return True
+
+    return False
+
+
+# ============================================================
+# WARNING KEY
+# ============================================================
+
+def get_warning_key(chat_id, user_id):
+
+    return f"{chat_id}:{user_id}"
+
+
+def get_warning_count(chat_id, user_id):
+
+    key = get_warning_key(
+        chat_id,
+        user_id
+    )
+
+    return int(
+        warnings.get(key, 0)
+    )
+
+
+def add_warning(chat_id, user_id):
+
+    key = get_warning_key(
+        chat_id,
+        user_id
+    )
+
+    current_count = int(
+        warnings.get(key, 0)
+    )
+
+    current_count += 1
+
+    warnings[key] = current_count
+
+    save_warnings()
+
+    return current_count
+
+
+# ============================================================
+# CHECK ADMIN STATUS
+# ============================================================
+
+def is_protected_user(chat_id, user_id):
+
+    # Owner is always protected
+    if user_id == OWNER_ID:
+        return True
+
+    try:
+
+        member = bot.get_chat_member(
+            chat_id,
+            user_id
+        )
+
+        # Telegram admins should not be automatically banned
+        if member.status in (
+            "administrator",
+            "creator"
+        ):
+
+            return True
+
+    except Exception:
+        pass
+
+    return False
+
+
+# ============================================================
+# HANDLE BAD LANGUAGE
+# ============================================================
+
+def handle_bad_language(message):
+
+    if not message.from_user:
+        return
+
+    user_id = message.from_user.id
+    chat_id = message.chat.id
+
+    # Owner/admin protection
+    if is_protected_user(
+        chat_id,
+        user_id
+    ):
+
+        return
+
+    count = add_warning(
+        chat_id,
+        user_id
+    )
+
+    # Delete abusive message
+    try:
+
+        bot.delete_message(
+            chat_id,
+            message.message_id
+        )
+
+    except Exception as error:
+
+        print(
+            f"Message delete error: {error}"
+        )
+
+    first_name = (
+        message.from_user.first_name
+        or "User"
+    )
+
+    # ========================================================
+    # WARNING 1
+    # ========================================================
+
+    if count == 1:
+
+        bot.send_message(
+            chat_id,
+            (
+                f"⚠️ <b>WARNING 1/3</b>\n\n"
+                f"<b>{first_name}</b>, abusive language is not allowed here.\n\n"
+                "Please keep the chat respectful.\n\n"
+                "<i>Next violation will result in another warning.</i>"
+            )
+        )
+
+    # ========================================================
+    # WARNING 2
+    # ========================================================
+
+    elif count == 2:
+
+        bot.send_message(
+            chat_id,
+            (
+                f"⚠️ <b>WARNING 2/3</b>\n\n"
+                f"<b>{first_name}</b>, this is your second warning.\n\n"
+                "Please stop using abusive language.\n\n"
+                "<i>One more violation will result in a ban.</i>"
+            )
+        )
+
+    # ========================================================
+    # WARNING 3 = BAN
+    # ========================================================
+
+    elif count >= 3:
+
+        try:
+
+            bot.ban_chat_member(
+                chat_id,
+                user_id
+            )
+
+            bot.send_message(
+                chat_id,
+                (
+                    f"🚫 <b>USER BANNED</b>\n\n"
+                    f"<b>{first_name}</b> has been banned "
+                    "for repeated abusive language.\n\n"
+                    "<b>Reason:</b> 3 warnings reached."
+                )
+            )
+
+        except Exception as error:
+
+            print(
+                f"Ban error: {error}"
+            )
+
+            bot.send_message(
+                chat_id,
+                (
+                    f"⚠️ <b>WARNING 3/3</b>\n\n"
+                    f"<b>{first_name}</b> reached the maximum "
+                    "warning limit.\n\n"
+                    "The bot could not ban the user. "
+                    "Please check that the bot has permission "
+                    "to ban users."
+                )
+            )
+
 
 # ============================================================
 # FLASK SERVER
@@ -29,11 +431,18 @@ app = Flask(__name__)
 
 @app.route("/")
 def home():
+
     return "QRIISHNA • ONLINE"
 
 
 def run_flask():
-    port = int(os.environ.get("PORT", 8080))
+
+    port = int(
+        os.environ.get(
+            "PORT",
+            8080
+        )
+    )
 
     app.run(
         host="0.0.0.0",
@@ -46,9 +455,11 @@ def run_flask():
 # ============================================================
 
 if not TOKEN:
+
     raise RuntimeError(
         "BOT_TOKEN environment variable is missing."
     )
+
 
 bot = telebot.TeleBot(
     TOKEN,
@@ -57,12 +468,32 @@ bot = telebot.TeleBot(
 
 
 # ============================================================
+# MESSAGE MODERATION
+# ============================================================
+
+@bot.message_handler(
+    func=lambda message: (
+        message.content_type == "text"
+        and contains_bad_word(
+            message.text or ""
+        )
+    ),
+    content_types=["text"]
+)
+def profanity_handler(message):
+
+    handle_bad_language(message)
+
+
+# ============================================================
 # MAIN WELCOME MENU
 # ============================================================
 
 def welcome_menu():
 
-    markup = types.InlineKeyboardMarkup(row_width=2)
+    markup = types.InlineKeyboardMarkup(
+        row_width=2
+    )
 
     help_button = types.InlineKeyboardButton(
         "⌕  HELP",
@@ -88,7 +519,9 @@ def welcome_menu():
 
 def help_menu():
 
-    markup = types.InlineKeyboardMarkup(row_width=2)
+    markup = types.InlineKeyboardMarkup(
+        row_width=2
+    )
 
     guide_button = types.InlineKeyboardButton(
         "▣  INSTALLATION GUIDE",
@@ -118,7 +551,9 @@ def help_menu():
 
 def language_menu():
 
-    markup = types.InlineKeyboardMarkup(row_width=2)
+    markup = types.InlineKeyboardMarkup(
+        row_width=2
+    )
 
     english_button = types.InlineKeyboardButton(
         "🇬🇧  ENGLISH",
@@ -244,8 +679,6 @@ def get_language_text():
 
 # ============================================================
 # ENGLISH INSTALLATION GUIDE
-#
-# Generic legitimate resource installation guidance.
 # ============================================================
 
 ENGLISH_GUIDE = [
@@ -314,8 +747,6 @@ ENGLISH_GUIDE = [
 
 # ============================================================
 # HINGLISH INSTALLATION GUIDE
-#
-# Natural Hinglish, not literal translation.
 # ============================================================
 
 HINGLISH_GUIDE = [
@@ -386,7 +817,9 @@ HINGLISH_GUIDE = [
 
 def guide_menu(language, page):
 
-    markup = types.InlineKeyboardMarkup(row_width=2)
+    markup = types.InlineKeyboardMarkup(
+        row_width=2
+    )
 
     total_pages = (
         len(ENGLISH_GUIDE)
@@ -461,357 +894,12 @@ def get_guide_page(language, page):
 @bot.message_handler(commands=["start"])
 def start(message):
 
-    first_name = message.from_user.first_name or "there"
+    first_name = (
+        message.from_user.first_name
+        or "there"
+    )
 
     bot.send_message(
         message.chat.id,
         get_welcome_text(first_name),
-        reply_markup=welcome_menu()
-    )
-
-
-# ============================================================
-# /HACKS
-# ============================================================
-
-@bot.message_handler(commands=["hacks"])
-def hacks(message):
-
-    text = (
-        f"<b>{BOT_NAME} ACCESS</b>\n\n"
-        "Access request received.\n\n"
-        "The private resource area is now available "
-        "for you to open.\n\n"
-        "Use the secure access point below to continue."
-    )
-
-    bot.send_message(
-        message.chat.id,
-        text,
-        reply_markup=access_menu()
-    )
-
-
-# ============================================================
-# /HELP
-# ============================================================
-
-@bot.message_handler(commands=["help"])
-def help_command(message):
-
-    bot.send_message(
-        message.chat.id,
-        get_help_text(),
-        reply_markup=help_menu()
-    )
-
-
-# ============================================================
-# /ABOUT
-# ============================================================
-
-@bot.message_handler(commands=["about"])
-def about_command(message):
-
-    text = (
-        f"<b>{BOT_NAME}</b>\n\n"
-        "A clean and dedicated Telegram interface "
-        "designed for simple, direct and controlled access.\n\n"
-
-        "<b>VERSION</b>\n"
-        f"{BOT_VERSION}\n\n"
-
-        "<b>STATUS</b>\n"
-        "Online"
-    )
-
-    bot.send_message(
-        message.chat.id,
-        text,
-        reply_markup=back_menu()
-    )
-
-
-# ============================================================
-# /FILE
-# ============================================================
-
-@bot.message_handler(commands=["file"])
-def file_command(message):
-
-    text = (
-        f"<b>{BOT_NAME} ACCESS</b>\n\n"
-        "The requested resource is available "
-        "through the private access panel.\n\n"
-        "Use <b>/hacks</b> to continue."
-    )
-
-    bot.send_message(
-        message.chat.id,
-        text,
-        reply_markup=back_menu()
-    )
-
-
-# ============================================================
-# MAIN HELP BUTTON
-# ============================================================
-
-@bot.callback_query_handler(
-    func=lambda call: call.data == "help"
-)
-def help_callback(call):
-
-    bot.answer_callback_query(call.id)
-
-    bot.edit_message_text(
-        get_help_text(),
-        call.message.chat.id,
-        call.message.message_id,
-        reply_markup=help_menu()
-    )
-
-
-# ============================================================
-# ABOUT BUTTON
-# ============================================================
-
-@bot.callback_query_handler(
-    func=lambda call: call.data == "about"
-)
-def about_callback(call):
-
-    text = (
-        f"<b>{BOT_NAME}</b>\n\n"
-        "A clean and dedicated Telegram interface "
-        "designed for simple, direct and controlled access.\n\n"
-
-        "<b>VERSION</b>\n"
-        f"{BOT_VERSION}\n\n"
-
-        "<b>STATUS</b>\n"
-        "Online"
-    )
-
-    bot.answer_callback_query(call.id)
-
-    bot.edit_message_text(
-        text,
-        call.message.chat.id,
-        call.message.message_id,
-        reply_markup=back_menu()
-    )
-
-
-# ============================================================
-# INSTALLATION GUIDE BUTTON
-# ============================================================
-
-@bot.callback_query_handler(
-    func=lambda call: call.data == "guide"
-)
-def guide_callback(call):
-
-    bot.answer_callback_query(call.id)
-
-    bot.edit_message_text(
-        get_language_text(),
-        call.message.chat.id,
-        call.message.message_id,
-        reply_markup=language_menu()
-    )
-
-
-# ============================================================
-# ENGLISH GUIDE START
-# ============================================================
-
-@bot.callback_query_handler(
-    func=lambda call: call.data == "guide_en"
-)
-def guide_english_callback(call):
-
-    bot.answer_callback_query(call.id)
-
-    bot.edit_message_text(
-        get_guide_page("en", 0),
-        call.message.chat.id,
-        call.message.message_id,
-        reply_markup=guide_menu("en", 0)
-    )
-
-
-# ============================================================
-# HINGLISH GUIDE START
-# ============================================================
-
-@bot.callback_query_handler(
-    func=lambda call: call.data == "guide_hi"
-)
-def guide_hinglish_callback(call):
-
-    bot.answer_callback_query(call.id)
-
-    bot.edit_message_text(
-        get_guide_page("hi", 0),
-        call.message.chat.id,
-        call.message.message_id,
-        reply_markup=guide_menu("hi", 0)
-    )
-
-
-# ============================================================
-# GUIDE PAGE NAVIGATION
-# ============================================================
-
-@bot.callback_query_handler(
-    func=lambda call: call.data.startswith("guide_en_")
-)
-def guide_english_pages(call):
-
-    try:
-        page = int(
-            call.data.replace("guide_en_", "")
-        )
-
-    except ValueError:
-        bot.answer_callback_query(call.id)
-        return
-
-    if page < 0 or page >= len(ENGLISH_GUIDE):
-        bot.answer_callback_query(
-            call.id,
-            "This page is not available."
-        )
-        return
-
-    bot.answer_callback_query(call.id)
-
-    bot.edit_message_text(
-        get_guide_page("en", page),
-        call.message.chat.id,
-        call.message.message_id,
-        reply_markup=guide_menu("en", page)
-    )
-
-
-# ============================================================
-# HINGLISH GUIDE PAGE NAVIGATION
-# ============================================================
-
-@bot.callback_query_handler(
-    func=lambda call: call.data.startswith("guide_hi_")
-)
-def guide_hinglish_pages(call):
-
-    try:
-        page = int(
-            call.data.replace("guide_hi_", "")
-        )
-
-    except ValueError:
-        bot.answer_callback_query(call.id)
-        return
-
-    if page < 0 or page >= len(HINGLISH_GUIDE):
-        bot.answer_callback_query(
-            call.id,
-            "This page is not available."
-        )
-        return
-
-    bot.answer_callback_query(call.id)
-
-    bot.edit_message_text(
-        get_guide_page("hi", page),
-        call.message.chat.id,
-        call.message.message_id,
-        reply_markup=guide_menu("hi", page)
-    )
-
-
-# ============================================================
-# BACK TO HOME
-# ============================================================
-
-@bot.callback_query_handler(
-    func=lambda call: call.data == "home"
-)
-def home_callback(call):
-
-    first_name = call.from_user.first_name or "there"
-
-    bot.answer_callback_query(call.id)
-
-    bot.edit_message_text(
-        get_welcome_text(first_name),
-        call.message.chat.id,
-        call.message.message_id,
-        reply_markup=welcome_menu()
-    )
-
-
-# ============================================================
-# TELEGRAM COMMAND MENU
-# ============================================================
-
-def set_commands():
-
-    commands = [
-
-        types.BotCommand(
-            "start",
-            "Open QRIISHNA"
-        ),
-
-        types.BotCommand(
-            "hacks",
-            "Open private access"
-        ),
-
-        types.BotCommand(
-            "help",
-            "View help and installation guide"
-        ),
-
-        types.BotCommand(
-            "about",
-            "About QRIISHNA"
-        ),
-
-        types.BotCommand(
-            "file",
-            "Access information"
-        )
-
-    ]
-
-    bot.set_my_commands(commands)
-
-
-# ============================================================
-# START APPLICATION
-# ============================================================
-
-if __name__ == "__main__":
-
-    print("----------------------------------------")
-    print("          QRIISHNA INITIALIZING")
-    print("----------------------------------------")
-
-    set_commands()
-
-    threading.Thread(
-        target=run_flask,
-        daemon=True
-    ).start()
-
-    print("Flask server : ONLINE")
-    print("Telegram bot : ONLINE")
-    print("Bot name     : QRIISHNA")
-    print("----------------------------------------")
-
-    bot.infinity_polling(
-        timeout=60,
-        long_polling_timeout=60
-        )
+        reply_markup=welc
