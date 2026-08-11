@@ -870,6 +870,7 @@ if __name__ == "__main__":
     init_database()
     set_commands()
 
+    # Flask keep-alive server
     threading.Thread(
         target=run_flask,
         daemon=True
@@ -877,13 +878,17 @@ if __name__ == "__main__":
 
     print("QRISHNA VIP ENGINE is ONLINE.")
 
+    # Forcefully delete webhook before starting polling
     try:
         bot.remove_webhook()
+        time.sleep(1)
     except Exception:
         pass
 
-    bot.infinity_polling(
-        timeout=60,
-        long_polling_timeout=60,
-        skip_pending=True
-    )
+    # Single retry loop for polling
+    while True:
+        try:
+            bot.polling(non_stop=True, interval=1, timeout=30, skip_pending=True)
+        except Exception as e:
+            print(f"Polling error: {e}")
+            time.sleep(3)
