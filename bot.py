@@ -2,6 +2,7 @@ import os
 import re
 import sqlite3
 import threading
+import html
 import time
 
 import telebot
@@ -66,14 +67,16 @@ def auto_delete_message(chat_id, message_id, delay=45):
 def send_auto_delete_message(chat_id, text, reply_markup=None, delay=45):
     try:
         sent_msg = bot.send_message(
-            chat_id,
-            text,
+            chat_id=chat_id,
+            text=text,
             reply_markup=reply_markup,
             parse_mode="HTML"
         )
-        auto_delete_message(chat_id, sent_msg.message_id, delay)
+        if sent_msg:
+            auto_delete_message(chat_id, sent_msg.message_id, delay)
         return sent_msg
-    except Exception:
+    except Exception as e:
+        print(f"Error sending message: {e}")
         return None
 
 
@@ -223,7 +226,7 @@ def send_first_time_welcome(message):
     if not is_first_message:
         return
 
-    name = user.first_name or "User"
+    name = html.escape(user.first_name or "User")
     text = (
         "<b>✦ QRISHNA SYSTEM</b>\n\n"
         f"Welcome <b>{name}</b> to the official BGMI Resource Portal.\n"
@@ -300,7 +303,7 @@ def contains_bad_language(text):
 
 
 def warning_text(user, number):
-    name = user.first_name or "User"
+    name = html.escape(user.first_name or "User")
     return (
         "<b>SYSTEM WARNING</b>\n"
         "────────────────────────\n"
@@ -312,7 +315,7 @@ def warning_text(user, number):
 
 
 def banned_text(user):
-    name = user.first_name or "User"
+    name = html.escape(user.first_name or "User")
     return (
         "<b>USER BANNED</b>\n"
         "────────────────────────\n"
@@ -416,7 +419,7 @@ def premium_menu():
 
 
 def get_access_text(user_id, first_name):
-    name = first_name or "User"
+    name = html.escape(first_name or "User")
     return (
         "<b>VIP USER STATUS & LICENSE</b>\n"
         "────────────────────────\n"
