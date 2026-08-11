@@ -4,6 +4,7 @@ import sqlite3
 import threading
 import html
 import time
+import urllib.parse
 
 import telebot
 from telebot import types
@@ -26,6 +27,7 @@ ADMIN_CONTACT = "https://t.me/qrishna"
 # PAYMENT CONFIGURATION
 # ------------------------------------------------------------
 UPI_ID = "lucky25october@okaxis"
+PAYEE_NAME = "Krishna Singh"
 
 OWNER_IDS = {
     1332494807
@@ -415,37 +417,134 @@ def get_premium_text():
     )
 
 
-def get_packages_text():
+# ------------------------------------------------------------
+# STEP 1: HOOKS MENU
+# ------------------------------------------------------------
+
+def get_hooks_text():
     return (
-        "<b>VIP SUBSCRIPTION PACKAGES</b>\n"
+        "<b>VIP CATALOGUE & STORE PORTAL</b>\n"
         "────────────────────────────────────────\n"
-        "Select your desired package below to generate payment invoice:\n\n"
+        "Select a package tier below to view full specifications:\n\n"
         "<b>01. FULL VIP ENTERPRISE PACK</b>\n"
-        "├ Price: <b>INR 2,500</b>\n"
-        "├ Validity: <b>90 Days (3 Months)</b>\n"
-        "├ Features: High-Quality Magic Bullet + Precision Aimbot + Full ESP\n"
-        "└ Security: 100% Main ID Safe (Maximum Protection)\n\n"
+        "└ Price: <b>INR 2,500</b> | Duration: <b>90 Days</b>\n\n"
         "<b>02. PRO COMBAT PACK</b>\n"
-        "├ Price: <b>INR 1,500</b>\n"
-        "├ Validity: <b>90 Days (3 Months)</b>\n"
-        "├ Features: Magic Bullet + Precision Aimbot + Full ESP\n"
-        "└ Rule & Regulation: <b>8–10 Kills Limit Per Match</b> (Avoid Mass Reports)\n\n"
+        "└ Price: <b>INR 1,500</b> | Duration: <b>90 Days</b>\n\n"
         "<b>03. YOUTUBER STREAMER PACK</b>\n"
-        "├ Price: <b>INR 750</b>\n"
-        "├ Validity: <b>90 Days (3 Months)</b>\n"
-        "├ Features: 10% Soft Magic Bullet + 10% Assist Aimbot + 30% Recoil Control\n"
-        "└ Security: Fully Safe for Live Streamers (No Kills Limit)\n\n"
+        "└ Price: <b>INR 750</b> | Duration: <b>90 Days</b>\n\n"
         "────────────────────────────────────────\n"
-        "<i>Tap a package button below to proceed with payment.</i>"
+        "<i>Tap 'VIEW DETAILS' to review features before buying.</i>"
     )
 
 
-def packages_menu():
+def hooks_menu():
     markup = types.InlineKeyboardMarkup(row_width=1)
     markup.add(
-        types.InlineKeyboardButton("◇ BUY ENTERPRISE PACK — ₹2,500", callback_data="buy_p1"),
-        types.InlineKeyboardButton("◇ BUY PRO COMBAT PACK — ₹1,500", callback_data="buy_p2"),
-        types.InlineKeyboardButton("◇ BUY YOUTUBER PACK — ₹750", callback_data="buy_p3"),
+        types.InlineKeyboardButton("◇ VIEW DETAILS: ENTERPRISE PACK (₹2,500)", callback_data="det_p1"),
+        types.InlineKeyboardButton("◇ VIEW DETAILS: PRO COMBAT PACK (₹1,500)", callback_data="det_p2"),
+        types.InlineKeyboardButton("◇ VIEW DETAILS: YOUTUBER PACK (₹750)", callback_data="det_p3"),
+        types.InlineKeyboardButton("‹ DASHBOARD", callback_data="home")
+    )
+    return markup
+
+
+# ------------------------------------------------------------
+# STEP 2: DETAILS TEXT & MENUS
+# ------------------------------------------------------------
+
+def get_details_p1():
+    return (
+        "<b>PACKAGE DETAILS: FULL VIP ENTERPRISE PACK</b>\n"
+        "────────────────────────────────────────\n"
+        "● <b>Price:</b> INR 2,500\n"
+        "● <b>Validity:</b> 90 Days (3 Months)\n"
+        "● <b>Security Level:</b> Maximum Protection (100% Main ID Safe)\n\n"
+        "<b>INCLUDED FEATURES:</b>\n"
+        "├ High-Quality Magic Bullet Configuration\n"
+        "├ Precision Lock Aimbot Engine\n"
+        "├ Full ESP Wallhack Tracking System\n"
+        "└ Anti-Cheat Bypass Core\n\n"
+        "────────────────────────────────────────\n"
+        "<i>Tap below to select your payment app and proceed.</i>"
+    )
+
+
+def get_details_p2():
+    return (
+        "<b>PACKAGE DETAILS: PRO COMBAT PACK</b>\n"
+        "────────────────────────────────────────\n"
+        "● <b>Price:</b> INR 1,500\n"
+        "● <b>Validity:</b> 90 Days (3 Months)\n"
+        "● <b>Security Level:</b> High Protection (Main ID Safe)\n\n"
+        "<b>INCLUDED FEATURES:</b>\n"
+        "├ Magic Bullet Configuration\n"
+        "├ Precision Aimbot System\n"
+        "└ Full ESP Wallhack Tracking\n\n"
+        "<b>RULES & REGULATIONS:</b>\n"
+        "└ <b>8–10 Kills Limit Per Match</b> (Strictly enforce to avoid mass reports)\n\n"
+        "────────────────────────────────────────\n"
+        "<i>Tap below to select your payment app and proceed.</i>"
+    )
+
+
+def get_details_p3():
+    return (
+        "<b>PACKAGE DETAILS: YOUTUBER STREAMER PACK</b>\n"
+        "────────────────────────────────────────\n"
+        "● <b>Price:</b> INR 750\n"
+        "● <b>Validity:</b> 90 Days (3 Months)\n"
+        "● <b>Security Level:</b> 100% Stream-Proof & Fully Safe\n\n"
+        "<b>INCLUDED FEATURES:</b>\n"
+        "├ 10% Soft Magic Bullet Module\n"
+        "├ 10% Assist Aimbot Module\n"
+        "└ 30% Recoil Reduction System\n\n"
+        "<b>SPECIAL NOTES:</b>\n"
+        "└ No ESP included. No kill limits. Designed for legit gameplay and content creation.\n\n"
+        "────────────────────────────────────────\n"
+        "<i>Tap below to select your payment app and proceed.</i>"
+    )
+
+
+def details_menu(pack_code):
+    markup = types.InlineKeyboardMarkup(row_width=1)
+    markup.add(
+        types.InlineKeyboardButton("◇ PROCEED TO PAY", callback_data=f"pay_{pack_code}"),
+        types.InlineKeyboardButton("‹ BACK TO PACKAGES", callback_data="trigger_buy"),
+        types.InlineKeyboardButton("‹ DASHBOARD", callback_data="home")
+    )
+    return markup
+
+
+# ------------------------------------------------------------
+# STEP 3: DIRECT REDIRECT PAYMENT APPS (DEEP LINKS)
+# ------------------------------------------------------------
+
+def generate_upi_link(amount, note_text):
+    params = {
+        "pa": UPI_ID,
+        "pn": PAYEE_NAME,
+        "am": str(amount),
+        "cu": "INR",
+        "tn": note_text
+    }
+    return "upi://pay?" + urllib.parse.urlencode(params)
+
+
+def payment_apps_menu(amount_raw, pack_name):
+    upi_uri = generate_upi_link(amount_raw, f"Payment for {pack_name}")
+
+    # Deep links for direct app redirects
+    gpay_link = f"intent://pay?{urllib.parse.urlencode({'pa': UPI_ID, 'pn': PAYEE_NAME, 'am': str(amount_raw), 'cu': 'INR'})}#Intent;scheme=upi;package=com.google.android.apps.nbu.paisa.user;end"
+    phonepe_link = f"intent://pay?{urllib.parse.urlencode({'pa': UPI_ID, 'pn': PAYEE_NAME, 'am': str(amount_raw), 'cu': 'INR'})}#Intent;scheme=upi;package=com.phonepe.app;end"
+    paytm_link = f"intent://pay?{urllib.parse.urlencode({'pa': UPI_ID, 'pn': PAYEE_NAME, 'am': str(amount_raw), 'cu': 'INR'})}#Intent;scheme=upi;package=net.one97.paytm;end"
+
+    markup = types.InlineKeyboardMarkup(row_width=1)
+    markup.add(
+        types.InlineKeyboardButton("PAY VIA GOOGLE PAY", url=gpay_link),
+        types.InlineKeyboardButton("PAY VIA PHONEPE", url=phonepe_link),
+        types.InlineKeyboardButton("PAY VIA PAYTM", url=paytm_link),
+        types.InlineKeyboardButton("ANY OTHER UPI APP", url=upi_uri),
+        types.InlineKeyboardButton("◇ CONTACT ADMIN", url=ADMIN_CONTACT),
         types.InlineKeyboardButton("‹ DASHBOARD", callback_data="home")
     )
     return markup
@@ -619,8 +718,8 @@ def premium_command(message):
 def buy_command(message):
     send_auto_delete_message(
         message.chat.id,
-        get_packages_text(),
-        reply_markup=packages_menu(),
+        get_hooks_text(),
+        reply_markup=hooks_menu(),
         delay=60
     )
 
@@ -645,61 +744,79 @@ def support_command(message):
 
 
 # ============================================================
-# PAYMENT CALLBACK HANDLERS (DYNAMIC QR GENERATION)
+# PAYMENT & DETAILS CALLBACK HANDLERS
 # ============================================================
 
-def send_payment_invoice(chat_id, pack_name, amount):
-    caption_text = (
-        "<b>OFFICIAL INVOICE & PAYMENT PORTAL</b>\n"
-        "────────────────────────────────────────\n"
-        f"Selected Package: <b>{pack_name}</b>\n"
-        f"Amount Payable: <code>INR {amount}</code>\n"
-        "Validity Period: <b>90 Days (3 Months)</b>\n\n"
-        f"<b>OFFICIAL MERCHANT UPI ID:</b> <code>{UPI_ID}</code>\n\n"
-        "<b>PAYMENT INSTRUCTIONS:</b>\n"
-        "1. Scan the QR code above or tap the UPI ID to copy.\n"
-        "2. Complete the transfer of exact amount via GPay, PhonePe, or Paytm.\n"
-        "3. Send the payment receipt screenshot to Admin for instant key activation."
-    )
-
-    try:
-        if os.path.exists("qr.png"):
-            with open("qr.png", "rb") as photo:
-                sent_msg = bot.send_photo(
-                    chat_id=chat_id,
-                    photo=photo,
-                    caption=caption_text,
-                    parse_mode="HTML",
-                    reply_markup=premium_menu()
-                )
-            if sent_msg:
-                auto_delete_message(chat_id, sent_msg.message_id, delay=60)
-        else:
-            send_auto_delete_message(chat_id, caption_text, reply_markup=premium_menu(), delay=60)
-    except Exception as e:
-        print(f"Error sending payment photo: {e}")
-        send_auto_delete_message(chat_id, caption_text, reply_markup=premium_menu(), delay=60)
-
-
-@bot.callback_query_handler(func=lambda call: call.data in ["buy_p1", "buy_p2", "buy_p3"])
-def process_payment_selection(call):
+@bot.callback_query_handler(func=lambda call: call.data in ["det_p1", "det_p2", "det_p3"])
+def process_details_selection(call):
     try:
         bot.answer_callback_query(call.id)
-        
+        if call.data == "det_p1":
+            text, code = get_details_p1(), "p1"
+        elif call.data == "det_p2":
+            text, code = get_details_p2(), "p2"
+        elif call.data == "det_p3":
+            text, code = get_details_p3(), "p3"
+
+        bot.edit_message_text(
+            text,
+            call.message.chat.id,
+            call.message.message_id,
+            reply_markup=details_menu(code),
+            parse_mode="HTML"
+        )
+    except Exception as e:
+        print(f"Details error: {e}")
+
+
+@bot.callback_query_handler(func=lambda call: call.data in ["pay_p1", "pay_p2", "pay_p3"])
+def process_payment_redirection(call):
+    try:
+        bot.answer_callback_query(call.id)
+
+        if call.data == "pay_p1":
+            pack_name, amount = "FULL VIP ENTERPRISE PACK", "2500"
+        elif call.data == "pay_p2":
+            pack_name, amount = "PRO COMBAT PACK", "1500"
+        elif call.data == "pay_p3":
+            pack_name, amount = "YOUTUBER STREAMER PACK", "750"
+
+        caption_text = (
+            "<b>OFFICIAL INVOICE & GATEWAY</b>\n"
+            "────────────────────────────────────────\n"
+            f"Package: <b>{pack_name}</b>\n"
+            f"Amount Payable: <code>INR {amount}</code>\n"
+            f"Merchant UPI ID: <code>{UPI_ID}</code>\n\n"
+            "<b>INSTANT PAYMENT:</b>\n"
+            "Tap your preferred payment app below to automatically launch the payment screen with pre-filled details."
+        )
+
         try:
             bot.delete_message(call.message.chat.id, call.message.message_id)
         except Exception:
             pass
 
-        if call.data == "buy_p1":
-            send_payment_invoice(call.message.chat.id, "FULL VIP ENTERPRISE PACK", "2,500")
-        elif call.data == "buy_p2":
-            send_payment_invoice(call.message.chat.id, "PRO COMBAT PACK", "1,500")
-        elif call.data == "buy_p3":
-            send_payment_invoice(call.message.chat.id, "YOUTUBER STREAMER PACK", "750")
+        if os.path.exists("qr.png"):
+            with open("qr.png", "rb") as photo:
+                sent_msg = bot.send_photo(
+                    chat_id=call.message.chat.id,
+                    photo=photo,
+                    caption=caption_text,
+                    parse_mode="HTML",
+                    reply_markup=payment_apps_menu(amount, pack_name)
+                )
+            if sent_msg:
+                auto_delete_message(call.message.chat.id, sent_msg.message_id, delay=60)
+        else:
+            send_auto_delete_message(
+                call.message.chat.id,
+                caption_text,
+                reply_markup=payment_apps_menu(amount, pack_name),
+                delay=60
+            )
 
     except Exception as e:
-        print(f"Callback error: {e}")
+        print(f"Payment error: {e}")
 
 
 @bot.callback_query_handler(func=lambda call: call.data == "trigger_buy")
@@ -712,8 +829,8 @@ def trigger_buy_callback(call):
             pass
         send_auto_delete_message(
             call.message.chat.id,
-            get_packages_text(),
-            reply_markup=packages_menu(),
+            get_hooks_text(),
+            reply_markup=hooks_menu(),
             delay=60
         )
     except Exception:
