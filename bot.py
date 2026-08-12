@@ -803,9 +803,9 @@ def handle_files_access(user_id, chat_id, message_id=None):
             try:
                 bot.edit_message_text(restricted_text, chat_id, message_id, reply_markup=markup, parse_mode="HTML")
             except Exception:
-                send_auto_delete_message(chat_id, restricted_text, reply_markup=markup)
+                send_auto_delete_message(chat_id, restricted_text, reply_markup=markup, delay=20)
         else:
-            send_auto_delete_message(chat_id, restricted_text, reply_markup=markup)
+            send_auto_delete_message(chat_id, restricted_text, reply_markup=markup, delay=20)
         return
 
     # Authorized VIP User Access
@@ -813,9 +813,9 @@ def handle_files_access(user_id, chat_id, message_id=None):
         try:
             bot.edit_message_text(get_files_text(), chat_id, message_id, reply_markup=files_menu(), parse_mode="HTML")
         except Exception:
-            send_auto_delete_message(chat_id, get_files_text(), reply_markup=files_menu())
+            send_auto_delete_message(chat_id, get_files_text(), reply_markup=files_menu(), delay=20)
     else:
-        send_auto_delete_message(chat_id, get_files_text(), reply_markup=files_menu())
+        send_auto_delete_message(chat_id, get_files_text(), reply_markup=files_menu(), delay=20)
 
 
 @bot.message_handler(commands=["files"])
@@ -837,7 +837,8 @@ def tutorial_command(message):
     send_auto_delete_message(
         message.chat.id,
         get_language_text(),
-        reply_markup=language_menu()
+        reply_markup=language_menu(),
+        delay=180
     )
 
 
@@ -846,7 +847,8 @@ def premium_command(message):
     send_auto_delete_message(
         message.chat.id,
         get_premium_text(),
-        reply_markup=premium_menu()
+        reply_markup=premium_menu(),
+        delay=20
     )
 
 
@@ -875,7 +877,8 @@ def support_command(message):
     send_auto_delete_message(
         message.chat.id,
         get_support_text(),
-        reply_markup=support_menu()
+        reply_markup=support_menu(),
+        delay=20
     )
 
 
@@ -1027,6 +1030,11 @@ def resetvip_command(message):
 @bot.message_handler(commands=["broadcast"])
 def broadcast_command(message):
     if message.from_user.id not in OWNER_IDS:
+        return
+
+    text_to_send = message.text.replace("/broadcast", "").strip()
+    if not text_to_send:
+        bot.reply_to(message, "Usage: <code>/broadcast Your Announcement Text</code>", parse_mode="HTML")
         return
 
     text_to_send = message.text.replace("/broadcast", "").strip()
