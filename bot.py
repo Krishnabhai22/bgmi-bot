@@ -5,7 +5,6 @@ import threading
 import html
 import time
 import uuid
-import queue
 from datetime import datetime, timedelta
 
 import telebot
@@ -14,13 +13,13 @@ from flask import Flask
 
 
 # ============================================================
-# QRISHNA • ENTERPRISE VIP TELEGRAM BOT (v11.0 OPTIMIZED)
+# QRISHNA • ENTERPRISE VIP TELEGRAM BOT
 # ============================================================
 
 TOKEN = os.environ.get("BOT_TOKEN")
 
 BOT_NAME = "QRISHNA VIP"
-BOT_VERSION = "11.0 MAXIMUM ENTERPRISE OPTIMIZED"
+BOT_VERSION = "10.1 ULTRA ENTERPRISE SECURE"
 
 CHANNEL_LINK = "https://t.me/+GHjJmfql0o02YWZl"
 ADMIN_CONTACT = "https://t.me/qrishna"
@@ -47,36 +46,30 @@ start_time = time.time()
 # ============================================================
 
 if not TOKEN:
-    raise RuntimeError("BOT_TOKEN environment variable is missing.")
+    raise RuntimeError(
+        "BOT_TOKEN environment variable is missing."
+    )
 
-bot = telebot.TeleBot(TOKEN, parse_mode=None)
+bot = telebot.TeleBot(
+    TOKEN,
+    parse_mode=None
+)
 
 
 # ============================================================
-# SINGLE WORKER AUTO-DELETE QUEUE (MEMORY EFFICIENT)
+# AUTO DELETE UTILITY
 # ============================================================
 
-delete_queue = queue.PriorityQueue()
-
-def auto_delete_worker():
-    while True:
+def auto_delete_message(chat_id, message_id, delay=45):
+    def delete_job():
         try:
-            delete_time, chat_id, message_id = delete_queue.get(timeout=2)
-            now = time.time()
-            if delete_time > now:
-                time.sleep(delete_time - now)
-            try:
-                bot.delete_message(chat_id, message_id)
-            except Exception:
-                pass
-            delete_queue.task_done()
-        except queue.Empty:
-            continue
-        except Exception as e:
-            print(f"Auto delete worker error: {e}")
+            bot.delete_message(chat_id, message_id)
+        except Exception:
+            pass
 
-deletion_thread = threading.Thread(target=auto_delete_worker, daemon=True)
-deletion_thread.start()
+    timer = threading.Timer(delay, delete_job)
+    timer.daemon = True
+    timer.start()
 
 
 def send_auto_delete_message(chat_id, text, reply_markup=None, delay=45):
@@ -89,7 +82,7 @@ def send_auto_delete_message(chat_id, text, reply_markup=None, delay=45):
             disable_web_page_preview=True
         )
         if sent_msg:
-            delete_queue.put((time.time() + delay, chat_id, sent_msg.message_id))
+            auto_delete_message(chat_id, sent_msg.message_id, delay)
         return sent_msg
     except Exception as e:
         print(f"Error sending message: {e}")
@@ -107,7 +100,10 @@ def home():
 
 def run_flask():
     port = int(os.environ.get("PORT", 8080))
-    app.run(host="0.0.0.0", port=port)
+    app.run(
+        host="0.0.0.0",
+        port=port
+    )
 
 
 # ============================================================
@@ -115,7 +111,11 @@ def run_flask():
 # ============================================================
 
 def get_connection():
-    return sqlite3.connect(DB_FILE, check_same_thread=False, timeout=30)
+    return sqlite3.connect(
+        DB_FILE,
+        check_same_thread=False,
+        timeout=30
+    )
 
 
 def init_database():
@@ -185,7 +185,10 @@ def register_user(user_id, first_name):
     with db_lock:
         connection = get_connection()
         cursor = connection.cursor()
-        cursor.execute("INSERT OR REPLACE INTO bot_users (user_id, first_name) VALUES (?, ?)", (user_id, first_name))
+        cursor.execute("""
+            INSERT OR REPLACE INTO bot_users (user_id, first_name)
+            VALUES (?, ?)
+        """, (user_id, first_name))
         connection.commit()
         connection.close()
 
@@ -211,7 +214,10 @@ def generate_key_code(days=90):
     with db_lock:
         connection = get_connection()
         cursor = connection.cursor()
-        cursor.execute("INSERT INTO vip_keys (key_code, duration_days, created_at) VALUES (?, ?, ?)", (key, days, now_str))
+        cursor.execute("""
+            INSERT INTO vip_keys (key_code, duration_days, created_at)
+            VALUES (?, ?, ?)
+        """, (key, days, now_str))
         connection.commit()
         connection.close()
 
@@ -238,7 +244,12 @@ def redeem_vip_key(user_id, key_code):
             connection.close()
             return False, "This license key has already been redeemed."
 
-        cursor.execute("UPDATE vip_keys SET is_used = 1, used_by = ?, used_at = ? WHERE key_code = ?", (user_id, now_str, key_code))
+        cursor.execute("""
+            UPDATE vip_keys
+            SET is_used = 1, used_by = ?, used_at = ?
+            WHERE key_code = ?
+        """, (user_id, now_str, key_code))
+
         cursor.execute("SELECT expiry_date FROM user_subscriptions WHERE user_id = ?", (user_id,))
         sub_row = cursor.fetchone()
 
@@ -251,7 +262,11 @@ def redeem_vip_key(user_id, key_code):
         new_expiry = start_point + timedelta(days=days)
         expiry_str = new_expiry.strftime("%Y-%m-%d %H:%M:%S")
 
-        cursor.execute("INSERT OR REPLACE INTO user_subscriptions (user_id, expiry_date, active_key) VALUES (?, ?, ?)", (user_id, expiry_str, key_code))
+        cursor.execute("""
+            INSERT OR REPLACE INTO user_subscriptions (user_id, expiry_date, active_key)
+            VALUES (?, ?, ?)
+        """, (user_id, expiry_str, key_code))
+
         connection.commit()
         connection.close()
 
@@ -277,29 +292,110 @@ def get_user_subscription(user_id):
 
 
 # ============================================================
-# PRE-COMPILED REGEX BAD WORD FILTER ENGINE
+# WARNINGS SYSTEM & BAD WORD FILTER
 # ============================================================
 
+def add_warning(chat_id, user_id):
+    with db_lock:
+        connection = get_connection()
+        cursor = connection.cursor()
+
+        cursor.execute(
+            """
+            INSERT INTO warnings (chat_id, user_id, warning_count)
+            VALUES (?, ?, 1)
+            ON CONFLICT(chat_id, user_id)
+            DO UPDATE SET warning_count = warning_count + 1
+            """,
+            (chat_id, user_id)
+        )
+        connection.commit()
+
+        cursor.execute(
+            """
+            SELECT warning_count FROM warnings
+            WHERE chat_id = ? AND user_id = ?
+            """,
+            (chat_id, user_id)
+        )
+        result = cursor.fetchone()
+        connection.close()
+
+    return result[0] if result else 1
+
+
+def send_first_time_welcome(message):
+    user = message.from_user
+    if not user or user.is_bot:
+        return
+
+    chat_id = message.chat.id
+    user_id = user.id
+
+    with db_lock:
+        connection = get_connection()
+        cursor = connection.cursor()
+        cursor.execute(
+            """
+            INSERT OR IGNORE INTO welcomed_users (chat_id, user_id)
+            VALUES (?, ?)
+            """,
+            (chat_id, user_id)
+        )
+        is_first_message = cursor.rowcount == 1
+        connection.commit()
+        connection.close()
+
+    if not is_first_message:
+        return
+
+    name = html.escape(user.first_name or "User")
+    text = (
+        "<b>✦ QRISHNA ENTERPRISE</b>\n\n"
+        f"Welcome <b>{name}</b> to the BGMI Resource Portal.\n"
+        "Execute /start to initialize command center."
+    )
+
+    send_auto_delete_message(chat_id, text)
+
+
 BAD_WORDS = [
-    "loda", "lauda", "louda", "lawda", "lavda", "laude", "lode", "lodaa", "loudaa", "lawdaa",
-    "chod", "chhod", "chud", "chut", "chutiya", "chutiye", "chutia", "chutiy", "chutiyaa",
-    "madarchod", "madarchut", "madar chod", "madar ch0d", "mc", "bhenchod", "bhen chod", "behenchod",
-    "behen chod", "bc", "gaand", "gand", "gandu", "randi", "rand", "randwa", "harami", "haraami",
-    "haramkhor", "kamina", "kamine", "kaminey", "kutte", "kutta", "kutiya", "bhosdi", "bhosdike",
-    "bhosdika", "bhosdiwala", "bhosdiwale", "jhatu", "jhaatu", "bakchod", "bakchodi", "chakka",
-    "chakkar", "nalayak", "fuck", "fucking", "fucker", "motherfucker", "shit", "shitty", "bitch",
-    "bastard", "asshole", "dick", "dickhead", "pussy", "cunt", "whore", "slut"
+    "loda", "lauda", "louda", "lawda", "lavda",
+    "laude", "lode", "lodaa", "loudaa", "lawdaa",
+    "chod", "chhod", "chud", "chut", "chutiya",
+    "chutiye", "chutia", "chutiy", "chutiyaa",
+    "madarchod", "madarchut", "madar chod",
+    "madar ch0d", "mc",
+    "bhenchod", "bhen chod", "behenchod",
+    "behen chod", "bc",
+    "gaand", "gand", "gandu",
+    "randi", "rand", "randwa",
+    "harami", "haraami", "haramkhor",
+    "kamina", "kamine", "kaminey",
+    "kutte", "kutta", "kutiya",
+    "bhosdi", "bhosdike", "bhosdika",
+    "bhosdiwala", "bhosdiwale",
+    "jhatu", "jhaatu",
+    "bakchod", "bakchodi",
+    "chakka", "chakkar", "nalayak",
+    "fuck", "fucking", "fucker", "motherfucker",
+    "shit", "shitty",
+    "bitch", "bastard",
+    "asshole", "dick", "dickhead",
+    "pussy", "cunt", "whore", "slut"
 ]
 
 BAD_WORDS = sorted(set(BAD_WORDS), key=len, reverse=True)
-WORD_PATTERNS = [re.compile(r"(?<![a-zA-Z])" + re.escape(w) + r"(?![a-zA-Z])", re.IGNORECASE) for w in BAD_WORDS]
 
 
 def normalize_text(text):
     if not text:
         return ""
     text = text.lower()
-    replacements = {"@": "a", "4": "a", "0": "o", "1": "i", "!": "i", "$": "s", "3": "e", "5": "s"}
+    replacements = {
+        "@": "a", "4": "a", "0": "o", "1": "i",
+        "!": "i", "$": "s", "3": "e", "5": "s"
+    }
     for old, new in replacements.items():
         text = text.replace(old, new)
     text = re.sub(r"[\u200b-\u200f\uFEFF]", "", text)
@@ -312,8 +408,8 @@ def contains_bad_language(text):
     if not normalized:
         return False
 
-    for pattern in WORD_PATTERNS:
-        if pattern.search(normalized):
+    for word in BAD_WORDS:
+        if re.search(r"(?<![a-zA-Z])" + re.escape(word) + r"(?![a-zA-Z])", normalized):
             return True
 
     compact = re.sub(r"[^a-zA-Z\u0900-\u097F]", "", normalized)
@@ -323,49 +419,6 @@ def contains_bad_language(text):
             return True
 
     return False
-
-
-def add_warning(chat_id, user_id):
-    with db_lock:
-        connection = get_connection()
-        cursor = connection.cursor()
-
-        cursor.execute("""
-            INSERT INTO warnings (chat_id, user_id, warning_count)
-            VALUES (?, ?, 1)
-            ON CONFLICT(chat_id, user_id)
-            DO UPDATE SET warning_count = warning_count + 1
-        """, (chat_id, user_id))
-        connection.commit()
-
-        cursor.execute("SELECT warning_count FROM warnings WHERE chat_id = ? AND user_id = ?", (chat_id, user_id))
-        result = cursor.fetchone()
-        connection.close()
-
-    return result[0] if result else 1
-
-
-def send_first_time_welcome(message):
-    user = message.from_user
-    if not user or user.is_bot:
-        return
-
-    chat_id, user_id = message.chat.id, user.id
-
-    with db_lock:
-        connection = get_connection()
-        cursor = connection.cursor()
-        cursor.execute("INSERT OR IGNORE INTO welcomed_users (chat_id, user_id) VALUES (?, ?)", (chat_id, user_id))
-        is_first_message = cursor.rowcount == 1
-        connection.commit()
-        connection.close()
-
-    if not is_first_message:
-        return
-
-    name = html.escape(user.first_name or "User")
-    text = f"<b>✦ QRISHNA ENTERPRISE</b>\n\nWelcome <b>{name}</b> to the BGMI Resource Portal.\nExecute /start to initialize command center."
-    send_auto_delete_message(chat_id, text)
 
 
 def warning_text(user, number):
@@ -392,21 +445,41 @@ def banned_text(user):
 
 
 # ============================================================
-# STRUCTURED UI MESSAGES DICTIONARY
+# UI MENUS & FORMATTED TEXTS
 # ============================================================
 
-UI_TEXTS = {
-    "start": (
+def start_menu():
+    markup = types.InlineKeyboardMarkup(row_width=2)
+    markup.add(
+        types.InlineKeyboardButton("◈ DOWNLOAD HUB", callback_data="btn_files"),
+        types.InlineKeyboardButton("◈ SETUP GUIDE", callback_data="btn_tutorial")
+    )
+    markup.add(
+        types.InlineKeyboardButton("◈ VIP PASS", callback_data="btn_premium"),
+        types.InlineKeyboardButton("◈ SUPPORT DESK", callback_data="btn_support")
+    )
+    markup.add(
+        types.InlineKeyboardButton("◈ SYSTEM LOGS", callback_data="btn_updates")
+    )
+    return markup
+
+
+def get_start_text():
+    total_users = get_total_users()
+    return (
         "<b>QRISHNA • VIP COMMAND CENTER</b>\n"
         "────────────────────────\n"
         "Welcome to the official <b>BGMI Enterprise Portal</b>.\n\n"
         "● <b>System Status:</b> ONLINE\n"
-        "● <b>Engine Core:</b> v{version}\n"
-        "● <b>Active Users:</b> {total_users}\n"
+        f"● <b>Engine Core:</b> v{BOT_VERSION}\n"
+        f"● <b>Active Users:</b> {total_users}\n"
         "● <b>Security Core:</b> Anti-Ban Active\n\n"
         "<i>Select an option from the menu below to proceed.</i>"
-    ),
-    "files": (
+    )
+
+
+def get_files_text():
+    return (
         "<b>BGMI ENTERPRISE DOWNLOAD PORTAL</b>\n"
         "────────────────────────\n"
         "Fetch verified, anti-ban game resources:\n\n"
@@ -415,29 +488,35 @@ UI_TEXTS = {
         "◆ <b>iPad View Ultra Wide Pack</b>\n"
         "◆ <b>LagFix Performance Engine</b>\n\n"
         "<i>Tap below to access the secure download channel.</i>"
-    ),
-    "restricted": (
-        "<b>🔒 ACCESS RESTRICTED • VIP REQUIRED</b>\n"
-        "────────────────────────────────────────\n"
-        "An active <b>VIP Subscription</b> is required to access the Enterprise Download Portal.\n\n"
-        "<b>AVAILABLE ACTIONS:</b>\n"
-        "├ Purchase License Pass: <code>/buy</code>\n"
-        "└ Redeem License Key: <code>/redeem KEY_CODE</code>\n"
-        "────────────────────────────────────────\n"
-        "<i>High-speed CDN servers and anti-ban resources are reserved for active VIP members.</i>"
-    ),
-    "updates": (
+    )
+
+
+def files_menu():
+    markup = types.InlineKeyboardMarkup(row_width=1)
+    markup.add(
+        types.InlineKeyboardButton("◇ OPEN DOWNLOAD CHANNEL", url=CHANNEL_LINK),
+        types.InlineKeyboardButton("‹ DASHBOARD", callback_data="home")
+    )
+    return markup
+
+
+def get_updates_text():
+    uptime = int(time.time() - start_time) // 3600
+    return (
         "<b>SYSTEM LOGS & METRICS</b>\n"
         "────────────────────────\n"
-        "● <b>Engine Version:</b> v{version}\n"
-        "● <b>Server Uptime:</b> {uptime} Hours\n"
+        f"● <b>Engine Version:</b> v{BOT_VERSION}\n"
+        f"● <b>Server Uptime:</b> {uptime} Hours\n"
         "● <b>Latency:</b> 24ms (Optimal)\n\n"
         "<b>Patch Notes:</b>\n"
         "├ Optimized for latest BGMI update\n"
         "├ Enterprise Payment Verification Engine active\n"
         "└ Instant Private License Delivery online"
-    ),
-    "premium": (
+    )
+
+
+def get_premium_text():
+    return (
         "<b>VIP ACCESS PASS</b>\n"
         "────────────────────────\n"
         "Unlock elite configurations and priority bandwidth:\n\n"
@@ -446,8 +525,11 @@ UI_TEXTS = {
         "◆ Instant License Key Activation\n"
         "◆ 24/7 Priority Support Desk\n\n"
         "<i>Use /buy to view packages or /redeem to activate key.</i>"
-    ),
-    "catalogue": (
+    )
+
+
+def get_hooks_text():
+    return (
         "<b>VIP CATALOGUE & STORE PORTAL</b>\n"
         "────────────────────────────────────────\n"
         "Select a package tier below to view full specifications:\n\n"
@@ -459,8 +541,22 @@ UI_TEXTS = {
         "└ Price: <b>INR 750</b> | Duration: <b>90 Days</b>\n\n"
         "────────────────────────────────────────\n"
         "<i>Tap 'VIEW DETAILS' to review features before buying.</i>"
-    ),
-    "p1_details": (
+    )
+
+
+def hooks_menu():
+    markup = types.InlineKeyboardMarkup(row_width=1)
+    markup.add(
+        types.InlineKeyboardButton("◇ VIEW DETAILS: ENTERPRISE PACK (₹2,500)", callback_data="det_p1"),
+        types.InlineKeyboardButton("◇ VIEW DETAILS: PRO COMBAT PACK (₹1,500)", callback_data="det_p2"),
+        types.InlineKeyboardButton("◇ VIEW DETAILS: YOUTUBER PACK (₹750)", callback_data="det_p3"),
+        types.InlineKeyboardButton("‹ DASHBOARD", callback_data="home")
+    )
+    return markup
+
+
+def get_details_p1():
+    return (
         "<b>PACKAGE DETAILS: FULL VIP ENTERPRISE PACK</b>\n"
         "────────────────────────────────────────\n"
         "● <b>Price:</b> INR 2,500\n"
@@ -473,8 +569,11 @@ UI_TEXTS = {
         "└ Anti-Cheat Bypass Core\n\n"
         "────────────────────────────────────────\n"
         "<i>Tap below to proceed with the payment invoice.</i>"
-    ),
-    "p2_details": (
+    )
+
+
+def get_details_p2():
+    return (
         "<b>PACKAGE DETAILS: PRO COMBAT PACK</b>\n"
         "────────────────────────────────────────\n"
         "● <b>Price:</b> INR 1,500\n"
@@ -488,8 +587,11 @@ UI_TEXTS = {
         "└ <b>8–10 Kills Limit Per Match</b> (Strictly enforce to avoid mass reports)\n\n"
         "────────────────────────────────────────\n"
         "<i>Tap below to proceed with the payment invoice.</i>"
-    ),
-    "p3_details": (
+    )
+
+
+def get_details_p3():
+    return (
         "<b>PACKAGE DETAILS: YOUTUBER STREAMER PACK</b>\n"
         "────────────────────────────────────────\n"
         "● <b>Price:</b> INR 750\n"
@@ -503,57 +605,7 @@ UI_TEXTS = {
         "└ No ESP included. No kill limits. Designed for legit gameplay and content creation.\n\n"
         "────────────────────────────────────────\n"
         "<i>Tap below to proceed with the payment invoice.</i>"
-    ),
-    "support": (
-        "<b>SUPPORT DESK</b>\n"
-        "────────────────────────\n"
-        "Need technical assistance with file extraction or installation?\n\n"
-        "<i>Tap below to establish a direct connection with Support.</i>"
-    ),
-    "guide_lang": (
-        "<b>INSTALLATION GUIDE ENGINE</b>\n"
-        "────────────────────────\n"
-        "Select your preferred language for setup steps:"
     )
-}
-
-
-# ============================================================
-# INLINE KEYBOARD MENUS
-# ============================================================
-
-def start_menu():
-    markup = types.InlineKeyboardMarkup(row_width=2)
-    markup.add(
-        types.InlineKeyboardButton("◈ DOWNLOAD HUB", callback_data="btn_files"),
-        types.InlineKeyboardButton("◈ SETUP GUIDE", callback_data="btn_tutorial")
-    )
-    markup.add(
-        types.InlineKeyboardButton("◈ VIP PASS", callback_data="btn_premium"),
-        types.InlineKeyboardButton("◈ SUPPORT DESK", callback_data="btn_support")
-    )
-    markup.add(types.InlineKeyboardButton("◈ SYSTEM LOGS", callback_data="btn_updates"))
-    return markup
-
-
-def files_menu():
-    markup = types.InlineKeyboardMarkup(row_width=1)
-    markup.add(
-        types.InlineKeyboardButton("◇ OPEN DOWNLOAD CHANNEL", url=CHANNEL_LINK),
-        types.InlineKeyboardButton("‹ DASHBOARD", callback_data="home")
-    )
-    return markup
-
-
-def hooks_menu():
-    markup = types.InlineKeyboardMarkup(row_width=1)
-    markup.add(
-        types.InlineKeyboardButton("◇ VIEW DETAILS: ENTERPRISE PACK (₹2,500)", callback_data="det_p1"),
-        types.InlineKeyboardButton("◇ VIEW DETAILS: PRO COMBAT PACK (₹1,500)", callback_data="det_p2"),
-        types.InlineKeyboardButton("◇ VIEW DETAILS: YOUTUBER PACK (₹750)", callback_data="det_p3"),
-        types.InlineKeyboardButton("‹ DASHBOARD", callback_data="home")
-    )
-    return markup
 
 
 def details_menu(pack_code):
@@ -587,6 +639,45 @@ def premium_menu():
     return markup
 
 
+def get_access_text(user_id, first_name):
+    name = html.escape(first_name or "User")
+    sub = get_user_subscription(user_id)
+
+    if sub:
+        return (
+            "<b>VIP USER STATUS & LICENSE</b>\n"
+            "────────────────────────\n"
+            f"User Name: <b>{name}</b>\n"
+            f"Account ID: <code>{user_id}</code>\n\n"
+            "<b>LICENSE DETAILS</b>\n"
+            "├ Tier: <b>ACTIVE VIP MEMBER</b>\n"
+            f"├ License Key: <code>{sub['key']}</code>\n"
+            "├ Protection: <b>ACTIVE (ANTI-BAN)</b>\n"
+            f"└ Expiry Date: <b>{sub['expiry']}</b>\n\n"
+            "<i>Full-speed server downloads and premium resources active.</i>"
+        )
+    else:
+        return (
+            "<b>VIP USER STATUS & LICENSE</b>\n"
+            "────────────────────────\n"
+            f"User Name: <b>{name}</b>\n"
+            f"Account ID: <code>{user_id}</code>\n\n"
+            "<b>LICENSE DETAILS</b>\n"
+            "├ Tier: <b>FREE MEMBER</b>\n"
+            "└ Status: <b>NO ACTIVE VIP PASS</b>\n\n"
+            "<i>Use /buy to purchase a license or /redeem to activate your key.</i>"
+        )
+
+
+def get_support_text():
+    return (
+        "<b>SUPPORT DESK</b>\n"
+        "────────────────────────\n"
+        "Need technical assistance with file extraction or installation?\n\n"
+        "<i>Tap below to establish a direct connection with Support.</i>"
+    )
+
+
 def support_menu():
     markup = types.InlineKeyboardMarkup(row_width=1)
     markup.add(
@@ -614,6 +705,14 @@ def language_menu():
     )
     markup.add(types.InlineKeyboardButton("‹ DASHBOARD", callback_data="home"))
     return markup
+
+
+def get_language_text():
+    return (
+        "<b>INSTALLATION GUIDE ENGINE</b>\n"
+        "────────────────────────\n"
+        "Select your preferred language for setup steps:"
+    )
 
 
 ENGLISH_GUIDE = [
@@ -667,7 +766,7 @@ def start(message):
         register_user(message.from_user.id, message.from_user.first_name)
     send_auto_delete_message(
         message.chat.id,
-        UI_TEXTS["start"].format(version=BOT_VERSION, total_users=get_total_users()),
+        get_start_text(),
         reply_markup=start_menu()
     )
 
@@ -675,24 +774,42 @@ def start(message):
 def handle_files_access(user_id, chat_id, message_id=None):
     sub = get_user_subscription(user_id)
 
+    # Clean Premium Restricted UI
     if not sub:
-        text = UI_TEXTS["restricted"]
+        restricted_text = (
+            "<b>🔒 ACCESS RESTRICTED • VIP REQUIRED</b>\n"
+            "────────────────────────────────────────\n"
+            "An active <b>VIP Subscription</b> is required to access the Enterprise Download Portal.\n\n"
+            "<b>AVAILABLE ACTIONS:</b>\n"
+            "├ Purchase License Pass: <code>/buy</code>\n"
+            "└ Redeem License Key: <code>/redeem KEY_CODE</code>\n"
+            "────────────────────────────────────────\n"
+            "<i>High-speed CDN servers and anti-ban resources are reserved for active VIP members.</i>"
+        )
+        
         markup = types.InlineKeyboardMarkup(row_width=1)
         markup.add(
             types.InlineKeyboardButton("◇ BUY VIP PASS", callback_data="trigger_buy"),
             types.InlineKeyboardButton("‹ DASHBOARD", callback_data="home")
         )
-    else:
-        text = UI_TEXTS["files"]
-        markup = files_menu()
 
+        if message_id:
+            try:
+                bot.edit_message_text(restricted_text, chat_id, message_id, reply_markup=markup, parse_mode="HTML")
+            except Exception:
+                send_auto_delete_message(chat_id, restricted_text, reply_markup=markup)
+        else:
+            send_auto_delete_message(chat_id, restricted_text, reply_markup=markup)
+        return
+
+    # Authorized VIP User Access
     if message_id:
         try:
-            bot.edit_message_text(text, chat_id, message_id, reply_markup=markup, parse_mode="HTML")
+            bot.edit_message_text(get_files_text(), chat_id, message_id, reply_markup=files_menu(), parse_mode="HTML")
         except Exception:
-            send_auto_delete_message(chat_id, text, reply_markup=markup)
+            send_auto_delete_message(chat_id, get_files_text(), reply_markup=files_menu())
     else:
-        send_auto_delete_message(chat_id, text, reply_markup=markup)
+        send_auto_delete_message(chat_id, get_files_text(), reply_markup=files_menu())
 
 
 @bot.message_handler(commands=["files"])
@@ -702,66 +819,62 @@ def files_command(message):
 
 @bot.message_handler(commands=["updates"])
 def updates_command(message):
-    uptime = int(time.time() - start_time) // 3600
-    send_auto_delete_message(message.chat.id, UI_TEXTS["updates"].format(version=BOT_VERSION, uptime=uptime), reply_markup=back_menu())
+    send_auto_delete_message(
+        message.chat.id,
+        get_updates_text(),
+        reply_markup=back_menu()
+    )
 
 
 @bot.message_handler(commands=["tutorial"])
 def tutorial_command(message):
-    send_auto_delete_message(message.chat.id, UI_TEXTS["guide_lang"], reply_markup=language_menu())
+    send_auto_delete_message(
+        message.chat.id,
+        get_language_text(),
+        reply_markup=language_menu()
+    )
 
 
 @bot.message_handler(commands=["premium"])
 def premium_command(message):
-    send_auto_delete_message(message.chat.id, UI_TEXTS["premium"], reply_markup=premium_menu())
+    send_auto_delete_message(
+        message.chat.id,
+        get_premium_text(),
+        reply_markup=premium_menu()
+    )
 
 
 @bot.message_handler(commands=["buy", "pay"])
 def buy_command(message):
-    send_auto_delete_message(message.chat.id, UI_TEXTS["catalogue"], reply_markup=hooks_menu(), delay=60)
+    send_auto_delete_message(
+        message.chat.id,
+        get_hooks_text(),
+        reply_markup=hooks_menu(),
+        delay=60
+    )
 
 
 @bot.message_handler(commands=["access"])
 def access_command(message):
     user = message.from_user
-    name = html.escape(user.first_name or "User")
-    sub = get_user_subscription(user.id)
-
-    if sub:
-        text = (
-            "<b>VIP USER STATUS & LICENSE</b>\n"
-            "────────────────────────\n"
-            f"User Name: <b>{name}</b>\n"
-            f"Account ID: <code>{user.id}</code>\n\n"
-            "<b>LICENSE DETAILS</b>\n"
-            "├ Tier: <b>ACTIVE VIP MEMBER</b>\n"
-            f"├ License Key: <code>{sub['key']}</code>\n"
-            "├ Protection: <b>ACTIVE (ANTI-BAN)</b>\n"
-            f"└ Expiry Date: <b>{sub['expiry']}</b>\n\n"
-            "<i>Full-speed server downloads and premium resources active.</i>"
-        )
-    else:
-        text = (
-            "<b>VIP USER STATUS & LICENSE</b>\n"
-            "────────────────────────\n"
-            f"User Name: <b>{name}</b>\n"
-            f"Account ID: <code>{user.id}</code>\n\n"
-            "<b>LICENSE DETAILS</b>\n"
-            "├ Tier: <b>FREE MEMBER</b>\n"
-            "└ Status: <b>NO ACTIVE VIP PASS</b>\n\n"
-            "<i>Use /buy to purchase a license or /redeem to activate your key.</i>"
-        )
-
-    send_auto_delete_message(message.chat.id, text, reply_markup=back_menu())
+    send_auto_delete_message(
+        message.chat.id,
+        get_access_text(user.id, user.first_name),
+        reply_markup=back_menu()
+    )
 
 
 @bot.message_handler(commands=["support"])
 def support_command(message):
-    send_auto_delete_message(message.chat.id, UI_TEXTS["support"], reply_markup=support_menu())
+    send_auto_delete_message(
+        message.chat.id,
+        get_support_text(),
+        reply_markup=support_menu()
+    )
 
 
 # ------------------------------------------------------------
-# USER ID PROFILE CHECKER
+# USER ID PROFILE CHECKER (HIDDEN MANUAL COMMAND)
 # ------------------------------------------------------------
 
 @bot.message_handler(commands=["userid", "id", "myid"])
@@ -775,8 +888,9 @@ def userid_command(message):
         full_name += f" {html.escape(user.last_name)}"
 
     username = f"@{user.username}" if user.username else "Not Set"
-    sub = get_user_subscription(user.id)
+    user_id = user.id
 
+    sub = get_user_subscription(user_id)
     if sub:
         account_tier = "<b>ACTIVE VIP MEMBER</b>"
         expiry_info = f"\n● <b>VIP Expiry Date:</b> {sub['expiry']}"
@@ -789,14 +903,19 @@ def userid_command(message):
         "────────────────────────────────────────\n"
         f"● <b>Full Name:</b> {full_name}\n"
         f"● <b>Username:</b> {username}\n"
-        f"● <b>Telegram User ID:</b> <code>{user.id}</code>\n"
+        f"● <b>Telegram User ID:</b> <code>{user_id}</code>\n"
         f"● <b>Account Status:</b> {account_tier}"
         f"{expiry_info}\n"
         "────────────────────────────────────────\n"
         "<i>Tap the User ID code above to copy it to clipboard.</i>"
     )
 
-    send_auto_delete_message(message.chat.id, id_info_text, reply_markup=back_menu(), delay=60)
+    send_auto_delete_message(
+        message.chat.id,
+        id_info_text,
+        reply_markup=back_menu(),
+        delay=60
+    )
 
 
 # ------------------------------------------------------------
@@ -818,7 +937,12 @@ def redeem_command(message):
             "────────────────────────────────────────\n"
             "<i>Enter the VIP key provided upon payment approval to unlock full access.</i>"
         )
-        send_auto_delete_message(message.chat.id, help_text, reply_markup=back_menu(), delay=45)
+        send_auto_delete_message(
+            message.chat.id,
+            help_text,
+            reply_markup=back_menu(),
+            delay=45
+        )
         return
 
     key_code = parts[1].strip()
@@ -854,7 +978,9 @@ def genkey_command(message):
         return
 
     parts = message.text.strip().split()
-    days = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 90
+    days = 90
+    if len(parts) > 1 and parts[1].isdigit():
+        days = int(parts[1])
 
     new_key = generate_key_code(days)
     msg = (
@@ -873,7 +999,10 @@ def resetvip_command(message):
         return
 
     parts = message.text.strip().split()
-    target_id = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else message.from_user.id
+    target_id = message.from_user.id
+
+    if len(parts) > 1 and parts[1].isdigit():
+        target_id = int(parts[1])
 
     with db_lock:
         connection = get_connection()
@@ -882,7 +1011,11 @@ def resetvip_command(message):
         connection.commit()
         connection.close()
 
-    send_auto_delete_message(message.chat.id, f"<b>✅ VIP STATUS RESET SUCCESS</b>\n────────────────────────\nUser ID <code>{target_id}</code> is now reset to <b>FREE MEMBER</b>.", delay=30)
+    send_auto_delete_message(
+        message.chat.id,
+        f"<b>✅ VIP STATUS RESET SUCCESS</b>\n────────────────────────\nUser ID <code>{target_id}</code> is now reset to <b>FREE MEMBER</b>.",
+        delay=30
+    )
 
 
 @bot.message_handler(commands=["broadcast"])
@@ -954,10 +1087,15 @@ def revoke_key_command(message):
     with db_lock:
         connection = get_connection()
         cursor = connection.cursor()
+        
+        # 1. Key ko used/disabled mark karo
         cursor.execute("UPDATE vip_keys SET is_used = 1 WHERE key_code = ?", (key_code,))
         affected = cursor.rowcount
+
+        # 2. Agar ye key kisi ne redeem ki thi, toh uska VIP access bhi instantly cancel karo
         cursor.execute("DELETE FROM user_subscriptions WHERE active_key = ?", (key_code,))
         removed_sub = cursor.rowcount
+
         connection.commit()
         connection.close()
 
@@ -1005,15 +1143,21 @@ def process_details_selection(call):
     try:
         bot.answer_callback_query(call.id)
         if call.data == "det_p1":
-            text, code = UI_TEXTS["p1_details"], "p1"
+            text, code = get_details_p1(), "p1"
         elif call.data == "det_p2":
-            text, code = UI_TEXTS["p2_details"], "p2"
+            text, code = get_details_p2(), "p2"
         elif call.data == "det_p3":
-            text, code = UI_TEXTS["p3_details"], "p3"
+            text, code = get_details_p3(), "p3"
         else:
             return
 
-        bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=details_menu(code), parse_mode="HTML")
+        bot.edit_message_text(
+            text,
+            call.message.chat.id,
+            call.message.message_id,
+            reply_markup=details_menu(code),
+            parse_mode="HTML"
+        )
     except Exception as e:
         print(f"Details error: {e}")
 
@@ -1054,14 +1198,30 @@ def process_payment_redirection(call):
         if os.path.exists("qr.png"):
             try:
                 with open("qr.png", "rb") as photo:
-                    sent_msg = bot.send_photo(chat_id=call.message.chat.id, photo=photo, caption=caption_text, parse_mode="HTML", reply_markup=markup)
+                    sent_msg = bot.send_photo(
+                        chat_id=call.message.chat.id,
+                        photo=photo,
+                        caption=caption_text,
+                        parse_mode="HTML",
+                        reply_markup=markup
+                    )
                 if sent_msg:
-                    delete_queue.put((time.time() + 60, call.message.chat.id, sent_msg.message_id))
+                    auto_delete_message(call.message.chat.id, sent_msg.message_id, delay=60)
             except Exception as img_err:
-                print(f"Image send error: {img_err}")
-                send_auto_delete_message(call.message.chat.id, caption_text, reply_markup=markup, delay=60)
+                print(f"Image send error, falling back to text: {img_err}")
+                send_auto_delete_message(
+                    call.message.chat.id,
+                    caption_text,
+                    reply_markup=markup,
+                    delay=60
+                )
         else:
-            send_auto_delete_message(call.message.chat.id, caption_text, reply_markup=markup, delay=60)
+            send_auto_delete_message(
+                call.message.chat.id,
+                caption_text,
+                reply_markup=markup,
+                delay=60
+            )
 
     except Exception as e:
         print(f"Payment error: {e}")
@@ -1087,7 +1247,12 @@ def trigger_buy_callback(call):
             bot.delete_message(call.message.chat.id, call.message.message_id)
         except Exception:
             pass
-        send_auto_delete_message(call.message.chat.id, UI_TEXTS["catalogue"], reply_markup=hooks_menu(), delay=60)
+        send_auto_delete_message(
+            call.message.chat.id,
+            get_hooks_text(),
+            reply_markup=hooks_menu(),
+            delay=60
+        )
     except Exception as e:
         print(f"Trigger buy error: {e}")
 
@@ -1185,8 +1350,13 @@ def handle_all_messages(message):
             )
             return
 
-        pack_names = {"p1": ("FULL VIP ENTERPRISE PACK", "INR 2,500"), "p2": ("PRO COMBAT PACK", "INR 1,500")}
-        pack_name, amount = pack_names.get(pack_code, ("YOUTUBER STREAMER PACK", "INR 750"))
+        if pack_code == "p1":
+            pack_name, amount = "FULL VIP ENTERPRISE PACK", "INR 2,500"
+        elif pack_code == "p2":
+            pack_name, amount = "PRO COMBAT PACK", "INR 1,500"
+        else:
+            pack_name, amount = "YOUTUBER STREAMER PACK", "INR 750"
+
         now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         with db_lock:
@@ -1264,7 +1434,7 @@ def home_callback(call):
     try:
         bot.answer_callback_query(call.id)
         bot.edit_message_text(
-            UI_TEXTS["start"].format(version=BOT_VERSION, total_users=get_total_users()),
+            get_start_text(),
             call.message.chat.id,
             call.message.message_id,
             reply_markup=start_menu(),
@@ -1287,8 +1457,13 @@ def cb_files(call):
 def cb_updates(call):
     try:
         bot.answer_callback_query(call.id)
-        uptime = int(time.time() - start_time) // 3600
-        bot.edit_message_text(UI_TEXTS["updates"].format(version=BOT_VERSION, uptime=uptime), call.message.chat.id, call.message.message_id, reply_markup=back_menu(), parse_mode="HTML")
+        bot.edit_message_text(
+            get_updates_text(),
+            call.message.chat.id,
+            call.message.message_id,
+            reply_markup=back_menu(),
+            parse_mode="HTML"
+        )
     except Exception:
         pass
 
@@ -1297,7 +1472,13 @@ def cb_updates(call):
 def cb_tutorial(call):
     try:
         bot.answer_callback_query(call.id)
-        bot.edit_message_text(UI_TEXTS["guide_lang"], call.message.chat.id, call.message.message_id, reply_markup=language_menu(), parse_mode="HTML")
+        bot.edit_message_text(
+            get_language_text(),
+            call.message.chat.id,
+            call.message.message_id,
+            reply_markup=language_menu(),
+            parse_mode="HTML"
+        )
     except Exception:
         pass
 
@@ -1306,7 +1487,13 @@ def cb_tutorial(call):
 def cb_premium(call):
     try:
         bot.answer_callback_query(call.id)
-        bot.edit_message_text(UI_TEXTS["premium"], call.message.chat.id, call.message.message_id, reply_markup=premium_menu(), parse_mode="HTML")
+        bot.edit_message_text(
+            get_premium_text(),
+            call.message.chat.id,
+            call.message.message_id,
+            reply_markup=premium_menu(),
+            parse_mode="HTML"
+        )
     except Exception:
         pass
 
@@ -1315,7 +1502,13 @@ def cb_premium(call):
 def cb_support(call):
     try:
         bot.answer_callback_query(call.id)
-        bot.edit_message_text(UI_TEXTS["support"], call.message.chat.id, call.message.message_id, reply_markup=support_menu(), parse_mode="HTML")
+        bot.edit_message_text(
+            get_support_text(),
+            call.message.chat.id,
+            call.message.message_id,
+            reply_markup=support_menu(),
+            parse_mode="HTML"
+        )
     except Exception:
         pass
 
@@ -1324,7 +1517,13 @@ def cb_support(call):
 def guide_english_callback(call):
     try:
         bot.answer_callback_query(call.id)
-        bot.edit_message_text(get_guide_page("en", 0), call.message.chat.id, call.message.message_id, reply_markup=guide_menu("en", 0), parse_mode="HTML")
+        bot.edit_message_text(
+            get_guide_page("en", 0),
+            call.message.chat.id,
+            call.message.message_id,
+            reply_markup=guide_menu("en", 0),
+            parse_mode="HTML"
+        )
     except Exception:
         pass
 
@@ -1333,7 +1532,13 @@ def guide_english_callback(call):
 def guide_hinglish_callback(call):
     try:
         bot.answer_callback_query(call.id)
-        bot.edit_message_text(get_guide_page("hi", 0), call.message.chat.id, call.message.message_id, reply_markup=guide_menu("hi", 0), parse_mode="HTML")
+        bot.edit_message_text(
+            get_guide_page("hi", 0),
+            call.message.chat.id,
+            call.message.message_id,
+            reply_markup=guide_menu("hi", 0),
+            parse_mode="HTML"
+        )
     except Exception:
         pass
 
@@ -1342,8 +1547,19 @@ def guide_hinglish_callback(call):
 def guide_english_pages(call):
     try:
         page = int(call.data.replace("guide_en_", ""))
+    except Exception:
         bot.answer_callback_query(call.id)
-        bot.edit_message_text(get_guide_page("en", page), call.message.chat.id, call.message.message_id, reply_markup=guide_menu("en", page), parse_mode="HTML")
+        return
+
+    try:
+        bot.answer_callback_query(call.id)
+        bot.edit_message_text(
+            get_guide_page("en", page),
+            call.message.chat.id,
+            call.message.message_id,
+            reply_markup=guide_menu("en", page),
+            parse_mode="HTML"
+        )
     except Exception:
         pass
 
@@ -1352,8 +1568,19 @@ def guide_english_pages(call):
 def guide_hinglish_pages(call):
     try:
         page = int(call.data.replace("guide_hi_", ""))
+    except Exception:
         bot.answer_callback_query(call.id)
-        bot.edit_message_text(get_guide_page("hi", page), call.message.chat.id, call.message.message_id, reply_markup=guide_menu("hi", page), parse_mode="HTML")
+        return
+
+    try:
+        bot.answer_callback_query(call.id)
+        bot.edit_message_text(
+            get_guide_page("hi", page),
+            call.message.chat.id,
+            call.message.message_id,
+            reply_markup=guide_menu("hi", page),
+            parse_mode="HTML"
+        )
     except Exception:
         pass
 
@@ -1363,18 +1590,20 @@ def guide_hinglish_pages(call):
 # ============================================================
 
 def set_commands():
-    bot.set_my_commands([
-        types.BotCommand("start", "Launch Command Center"),
-        types.BotCommand("dashboard", "Open Main Dashboard"),
-        types.BotCommand("files", "Access Download Portal"),
-        types.BotCommand("updates", "View System Logs"),
-        types.BotCommand("tutorial", "Installation Engine"),
-        types.BotCommand("premium", "VIP Access Pass"),
-        types.BotCommand("buy", "Pay via UPI / QR Code"),
-        types.BotCommand("redeem", "Redeem License Key"),
-        types.BotCommand("access", "Verification & Key Status"),
-        types.BotCommand("support", "Contact Support Desk")
-    ])
+    bot.set_my_commands(
+        [
+            types.BotCommand("start", "Launch Command Center"),
+            types.BotCommand("dashboard", "Open Main Dashboard"),
+            types.BotCommand("files", "Access Download Portal"),
+            types.BotCommand("updates", "View System Logs"),
+            types.BotCommand("tutorial", "Installation Engine"),
+            types.BotCommand("premium", "VIP Access Pass"),
+            types.BotCommand("buy", "Pay via UPI / QR Code"),
+            types.BotCommand("redeem", "Redeem License Key"),
+            types.BotCommand("access", "Verification & Key Status"),
+            types.BotCommand("support", "Contact Support Desk")
+        ]
+    )
 
 
 # ============================================================
@@ -1382,6 +1611,7 @@ def set_commands():
 # ============================================================
 
 if __name__ == "__main__":
+
     print("========================================")
     print("      QRISHNA VIP ENTERPRISE BOT")
     print("========================================")
@@ -1389,7 +1619,10 @@ if __name__ == "__main__":
     init_database()
     set_commands()
 
-    threading.Thread(target=run_flask, daemon=True).start()
+    threading.Thread(
+        target=run_flask,
+        daemon=True
+    ).start()
 
     print("QRISHNA VIP ENGINE is ONLINE.")
 
