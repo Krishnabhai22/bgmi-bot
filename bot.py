@@ -19,7 +19,7 @@ from flask import Flask
 TOKEN = os.environ.get("BOT_TOKEN")
 
 BOT_NAME = "QRISHNA VIP"
-BOT_VERSION = "7.5 ENTERPRISE PRO"
+BOT_VERSION = "9.0 ENTERPRISE FINAL SECURE"
 
 CHANNEL_LINK = "https://t.me/+GHjJmfql0o02YWZl"
 ADMIN_CONTACT = "https://t.me/qrishna"
@@ -237,12 +237,12 @@ def redeem_vip_key(user_id, key_code):
 
         if not row:
             connection.close()
-            return False, "Invalid Key! Please check and try again."
+            return False, "Invalid Key Code! Kripya check karke punah prayas karein."
 
         days, is_used = row
         if is_used:
             connection.close()
-            return False, "This Key has already been redeemed!"
+            return False, "Yeh Key pehle se hi redeem ho chuki hai!"
 
         cursor.execute("""
             UPDATE vip_keys
@@ -757,7 +757,7 @@ def guide_menu(language, page):
 
 
 # ============================================================
-# COMMAND HANDLERS
+# COMMAND HANDLERS & VIP FILE GUARDIAN
 # ============================================================
 
 @bot.message_handler(commands=["start", "dashboard"])
@@ -771,13 +771,50 @@ def start(message):
     )
 
 
+def handle_files_access(user_id, chat_id, message_id=None):
+    sub = get_user_subscription(user_id)
+
+    # Agar user Free Member hai (Bina VIP Pass Ke)
+    if not sub:
+        restricted_text = (
+            "<b>🔒 ACCESS RESTRICTED • VIP REQUIRED</b>\n"
+            "────────────────────────────────────────\n"
+            "Aapke paas active <b>VIP Pass</b> nahi hai!\n\n"
+            "Files download karne ke liye pehle VIP pass buy karein ya apni key redeem karein:\n\n"
+            "👉 VIP Key Kharidne Ke Liye: <code>/buy</code>\n"
+            "👉 Key Redeem Karne Ke Liye: <code>/redeem YOUR_KEY</code>\n"
+            "────────────────────────────────────────\n"
+            "<i>Kewal active VIP members hi high-speed download links access kar sakte hain.</i>"
+        )
+        
+        markup = types.InlineKeyboardMarkup(row_width=1)
+        markup.add(
+            types.InlineKeyboardButton("◇ BUY VIP PASS", callback_data="trigger_buy"),
+            types.InlineKeyboardButton("‹ DASHBOARD", callback_data="home")
+        )
+
+        if message_id:
+            try:
+                bot.edit_message_text(restricted_text, chat_id, message_id, reply_markup=markup, parse_mode="HTML")
+            except Exception:
+                send_auto_delete_message(chat_id, restricted_text, reply_markup=markup)
+        else:
+            send_auto_delete_message(chat_id, restricted_text, reply_markup=markup)
+        return
+
+    # Agar user Active VIP Member hai
+    if message_id:
+        try:
+            bot.edit_message_text(get_files_text(), chat_id, message_id, reply_markup=files_menu(), parse_mode="HTML")
+        except Exception:
+            send_auto_delete_message(chat_id, get_files_text(), reply_markup=files_menu())
+    else:
+        send_auto_delete_message(chat_id, get_files_text(), reply_markup=files_menu())
+
+
 @bot.message_handler(commands=["files"])
 def files_command(message):
-    send_auto_delete_message(
-        message.chat.id,
-        get_files_text(),
-        reply_markup=files_menu()
-    )
+    handle_files_access(message.from_user.id, message.chat.id)
 
 
 @bot.message_handler(commands=["updates"])
@@ -837,7 +874,7 @@ def support_command(message):
 
 
 # ------------------------------------------------------------
-# USER ID DETAILS COMMAND (MANUAL UNLISTED COMMAND)
+# USER ID PROFILE CHECKER (HIDDEN MANUAL COMMAND)
 # ------------------------------------------------------------
 
 @bot.message_handler(commands=["userid", "id", "myid"])
@@ -882,7 +919,57 @@ def userid_command(message):
 
 
 # ------------------------------------------------------------
-# FULL ADMIN SECRET COMMANDS (GENKEY, REDEEM, RESETVIP, BROADCAST, STATS, REVOKE)
+# KEY REDEMPTION ENGINE
+# ------------------------------------------------------------
+
+@bot.message_handler(commands=["redeem"])
+def redeem_command(message):
+    parts = message.text.strip().split()
+
+    if len(parts) < 2:
+        help_text = (
+            "<b>🔑 HOW TO REDEEM YOUR VIP KEY</b>\n"
+            "────────────────────────────────────────\n"
+            "Aapne key code nahi dala hai! Key redeem karne ke liye niche diye gaye format me message bheje:\n\n"
+            "👉 <code>/redeem YOUR_KEY_HERE</code>\n\n"
+            "<b>EXAMPLE:</b>\n"
+            "<code>/redeem QRISHNA-VIP-90D-A1B2C3D4</code>\n"
+            "────────────────────────────────────────\n"
+            "<i>Aapko payment approve hone ke baad jo key mili hai, use /redeem ke aage paste karke bhej de.</i>"
+        )
+        send_auto_delete_message(
+            message.chat.id,
+            help_text,
+            reply_markup=back_menu(),
+            delay=45
+        )
+        return
+
+    key_code = parts[1].strip()
+    success, result = redeem_vip_key(message.from_user.id, key_code)
+
+    if success:
+        text = (
+            "<b>🎉 VIP LICENSE ACTIVATED SUCCESSFULLY!</b>\n"
+            "────────────────────────────────────────\n"
+            f"● <b>Activated Key:</b> <code>{key_code}</code>\n"
+            f"● <b>Valid Until:</b> <b>{result}</b>\n\n"
+            "────────────────────────────────────────\n"
+            "<i>Aapka VIP access active ho gaya hai! Status dekhne ke liye /access dabae.</i>"
+        )
+    else:
+        text = (
+            "<b>❌ REDEMPTION FAILED</b>\n"
+            "────────────────────────────────────────\n"
+            f"Reason: <b>{result}</b>\n\n"
+            "<i>Kripya sahi key enter kare ya Admin se contact kare.</i>"
+        )
+
+    send_auto_delete_message(message.chat.id, text, reply_markup=back_menu(), delay=60)
+
+
+# ------------------------------------------------------------
+# FULL ADMIN SECRET COMMANDS
 # ------------------------------------------------------------
 
 @bot.message_handler(commands=["genkey"])
@@ -1009,34 +1096,6 @@ def revoke_key_command(message):
         bot.reply_to(message, f"<b>✅ Key <code>{key_code}</code> Has Been Revoked/Disabled!</b>", parse_mode="HTML")
     else:
         bot.reply_to(message, "Key not found.", parse_mode="HTML")
-
-
-@bot.message_handler(commands=["redeem"])
-def redeem_command(message):
-    parts = message.text.strip().split()
-    if len(parts) < 2:
-        send_auto_delete_message(
-            message.chat.id,
-            "Usage: <code>/redeem QRISHNA-VIP-YOUR-KEY</code>",
-            delay=30
-        )
-        return
-
-    key_code = parts[1].strip()
-    success, result = redeem_vip_key(message.from_user.id, key_code)
-
-    if success:
-        text = (
-            "<b>🎉 VIP LICENSE ACTIVATED</b>\n"
-            "────────────────────────\n"
-            f"Key Code: <code>{key_code}</code>\n"
-            f"Valid Until: <b>{result}</b>\n\n"
-            "<i>Your VIP access is active. Use /access to check status.</i>"
-        )
-    else:
-        text = f"<b>❌ REDEMPTION FAILED</b>\n────────────────────────\n{result}"
-
-    send_auto_delete_message(message.chat.id, text, delay=60)
 
 
 @bot.message_handler(commands=["keys"])
@@ -1379,15 +1438,9 @@ def home_callback(call):
 def cb_files(call):
     try:
         bot.answer_callback_query(call.id)
-        bot.edit_message_text(
-            get_files_text(),
-            call.message.chat.id,
-            call.message.message_id,
-            reply_markup=files_menu(),
-            parse_mode="HTML"
-        )
-    except Exception:
-        pass
+        handle_files_access(call.from_user.id, call.message.chat.id, call.message.message_id)
+    except Exception as e:
+        print(f"Files callback error: {e}")
 
 
 @bot.callback_query_handler(func=lambda call: call.data == "btn_updates")
