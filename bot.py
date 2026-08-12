@@ -716,23 +716,29 @@ def get_language_text():
 
 
 ENGLISH_GUIDE = [
-    "<b>STEP 01</b>\n\nDownload the required package from our official channel.",
-    "<b>STEP 02</b>\n\nOpen ZArchiver or your system File Manager.",
-    "<b>STEP 03</b>\n\nNavigate to the <code>/Download</code> directory.",
-    "<b>STEP 04</b>\n\nExtract the downloaded <code>.zip</code> or <code>.pak</code> file.",
-    "<b>STEP 05</b>\n\nVerify extracted files and copy required resources.",
-    "<b>STEP 06</b>\n\nPaste files into destination:\n<code>Android/data/com.pubg.imobile/files</code>",
-    "<b>STEP 07</b>\n\nRestart your device and launch BGMI."
+    "<b>STEP 01</b>\n\nFirst, go to my Telegram channel through the bot.",
+    "<b>STEP 02</b>\n\nAfter that, save the file available in my channel to downloads.",
+    "<b>STEP 03</b>\n\nIf it asks for a password, you can find it in the WhatsApp group, get the password from there.",
+    "<b>STEP 04</b>\n\nOnce saved to downloads, you need to open MT Manager.",
+    "<b>STEP 05</b>\n\nLook for the Download folder on the right-side panel.",
+    "<b>STEP 06</b>\n\nOnce you find the Download folder, go back to Telegram, tap on my file, and select 'Extract Here'.",
+    "<b>STEP 07</b>\n\nThen a folder named 'files' will appear, stop there.",
+    "<b>STEP 08</b>\n\nNow on the left side of MT Manager, navigate to <code>Android | data | com.pubg.imobile | files</code>.",
+    "<b>STEP 09</b>\n\nPaste the files from the right side right there.",
+    "<b>STEP 10</b>\n\nNow your setup is complete, launch the game and enjoy."
 ]
 
 HINGLISH_GUIDE = [
-    "<b>STEP 01</b>\n\nOfficial channel se file download karein.",
-    "<b>STEP 02</b>\n\nPhone me ZArchiver app open karein.",
-    "<b>STEP 03</b>\n\nNavigate to the <code>/Download</code> directory.",
-    "<b>STEP 04</b>\n\nDownloaded file ko extract karein.",
-    "<b>STEP 05</b>\n\nExtracted folder ki files copy kar lein.",
-    "<b>STEP 06</b>\n\nInhe is path par paste karein:\n<code>Android/data/com.pubg.imobile/files</code>",
-    "<b>STEP 07</b>\n\nPhone restart karein aur game enjoy karein!"
+    "<b>STEP 01</b>\n\nPahle aap mere Telegram channel me jao bot ke through.",
+    "<b>STEP 02</b>\n\nUske baad mere channel me file hogi usko 'Save to Download' kar lo.",
+    "<b>STEP 03</b>\n\nAgar password maange to WhatsApp group me password rahega, wahan se password le lena.",
+    "<b>STEP 04</b>\n\n'Save to download' karne ke baad aapko MT Manager kholna hai.",
+    "<b>STEP 05</b>\n\nWahan right side ke folder me Download folder dhundo.",
+    "<b>STEP 06</b>\n\nDownload folder mil jaye to wahan Telegram me jao aur meri file ko touch karke 'Extract Here' kar lo.",
+    "<b>STEP 07</b>\n\nPhir 'files' karke folder aa jayega, phir wahi ruk jana.",
+    "<b>STEP 08</b>\n\nAb tum MT Manager ke left side me <code>Android | data | com.pubg.imobile | files</code> par jao.",
+    "<b>STEP 09</b>\n\nWahi par paste kar dena right side wali files ko.",
+    "<b>STEP 10</b>\n\nAb tumhara kaam ho gaya hai, game chalu karke enjoy karo."
 ]
 
 
