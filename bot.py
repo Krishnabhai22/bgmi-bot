@@ -19,7 +19,7 @@ from flask import Flask
 TOKEN = os.environ.get("BOT_TOKEN")
 
 BOT_NAME = "QRISHNA VIP"
-BOT_VERSION = "9.0 ENTERPRISE FINAL SECURE"
+BOT_VERSION = "10.0 ULTRA ENTERPRISE"
 
 CHANNEL_LINK = "https://t.me/+GHjJmfql0o02YWZl"
 ADMIN_CONTACT = "https://t.me/qrishna"
@@ -57,7 +57,7 @@ bot = telebot.TeleBot(
 
 
 # ============================================================
-# AUTO DELETE UTILITY (45 SECONDS)
+# AUTO DELETE UTILITY
 # ============================================================
 
 def auto_delete_message(chat_id, message_id, delay=45):
@@ -237,12 +237,12 @@ def redeem_vip_key(user_id, key_code):
 
         if not row:
             connection.close()
-            return False, "Invalid Key Code! Kripya check karke punah prayas karein."
+            return False, "Invalid license key code. Please check and try again."
 
         days, is_used = row
         if is_used:
             connection.close()
-            return False, "Yeh Key pehle se hi redeem ho chuki hai!"
+            return False, "This license key has already been redeemed."
 
         cursor.execute("""
             UPDATE vip_keys
@@ -351,9 +351,9 @@ def send_first_time_welcome(message):
 
     name = html.escape(user.first_name or "User")
     text = (
-        "<b>✦ QRISHNA SYSTEM</b>\n\n"
-        f"Welcome <b>{name}</b> to the official BGMI Resource Portal.\n"
-        "Use /start to access your dashboard."
+        "<b>✦ QRISHNA ENTERPRISE</b>\n\n"
+        f"Welcome <b>{name}</b> to the BGMI Resource Portal.\n"
+        "Execute /start to initialize command center."
     )
 
     send_auto_delete_message(chat_id, text)
@@ -427,7 +427,7 @@ def warning_text(user, number):
         "<b>SYSTEM WARNING</b>\n"
         "────────────────────────\n"
         f"Target User: <b>{name}</b>\n"
-        "Infraction: Abusive / Inappropriate Language\n"
+        "Infraction: Inappropriate Language Detected\n"
         f"Warning Level: <b>{number} / 3</b>\n\n"
         "<i>Please maintain standard decorum in the portal.</i>"
     )
@@ -456,7 +456,7 @@ def start_menu():
     )
     markup.add(
         types.InlineKeyboardButton("◈ VIP PASS", callback_data="btn_premium"),
-        types.InlineKeyboardButton("◈ SUPPORT", callback_data="btn_support")
+        types.InlineKeyboardButton("◈ SUPPORT DESK", callback_data="btn_support")
     )
     markup.add(
         types.InlineKeyboardButton("◈ SYSTEM LOGS", callback_data="btn_updates")
@@ -471,7 +471,7 @@ def get_start_text():
         "────────────────────────\n"
         "Welcome to the official <b>BGMI Enterprise Portal</b>.\n\n"
         "● <b>System Status:</b> ONLINE\n"
-        f"● <b>Build Version:</b> v{BOT_VERSION}\n"
+        f"● <b>Engine Core:</b> v{BOT_VERSION}\n"
         f"● <b>Active Users:</b> {total_users}\n"
         "● <b>Security Core:</b> Anti-Ban Active\n\n"
         "<i>Select an option from the menu below to proceed.</i>"
@@ -509,9 +509,9 @@ def get_updates_text():
         f"● <b>Server Uptime:</b> {uptime} Hours\n"
         "● <b>Latency:</b> 24ms (Optimal)\n\n"
         "<b>Patch Notes:</b>\n"
-        "├ Optimized for latest BGMI Engine update\n"
-        "├ Integrated Admin Approval Verification Layer\n"
-        "└ Direct DM Private Key Delivery Active"
+        "├ Optimized for latest BGMI update\n"
+        "├ Enterprise Payment Verification Engine active\n"
+        "└ Instant Private License Delivery online"
     )
 
 
@@ -520,10 +520,10 @@ def get_premium_text():
         "<b>VIP ACCESS PASS</b>\n"
         "────────────────────────\n"
         "Unlock elite configurations and priority bandwidth:\n\n"
-        "◆ Direct High-Speed CDN Download Links\n"
-        "◆ Exclusive Anti-Ban Security Bypass\n"
+        "◆ Direct High-Speed CDN Download Access\n"
+        "◆ Exclusive Anti-Ban Security Engine\n"
         "◆ Instant License Key Activation\n"
-        "◆ 24/7 Dedicated Support Desk\n\n"
+        "◆ 24/7 Priority Support Desk\n\n"
         "<i>Use /buy to view packages or /redeem to activate key.</i>"
     )
 
@@ -774,17 +774,17 @@ def start(message):
 def handle_files_access(user_id, chat_id, message_id=None):
     sub = get_user_subscription(user_id)
 
-    # Agar user Free Member hai (Bina VIP Pass Ke)
+    # Clean Premium Restricted UI
     if not sub:
         restricted_text = (
             "<b>🔒 ACCESS RESTRICTED • VIP REQUIRED</b>\n"
             "────────────────────────────────────────\n"
-            "Aapke paas active <b>VIP Pass</b> nahi hai!\n\n"
-            "Files download karne ke liye pehle VIP pass buy karein ya apni key redeem karein:\n\n"
-            "👉 VIP Key Kharidne Ke Liye: <code>/buy</code>\n"
-            "👉 Key Redeem Karne Ke Liye: <code>/redeem YOUR_KEY</code>\n"
+            "An active <b>VIP Subscription</b> is required to access the Enterprise Download Portal.\n\n"
+            "<b>AVAILABLE ACTIONS:</b>\n"
+            "├ Purchase License Pass: <code>/buy</code>\n"
+            "└ Redeem License Key: <code>/redeem KEY_CODE</code>\n"
             "────────────────────────────────────────\n"
-            "<i>Kewal active VIP members hi high-speed download links access kar sakte hain.</i>"
+            "<i>High-speed CDN servers and anti-ban resources are reserved for active VIP members.</i>"
         )
         
         markup = types.InlineKeyboardMarkup(row_width=1)
@@ -802,7 +802,7 @@ def handle_files_access(user_id, chat_id, message_id=None):
             send_auto_delete_message(chat_id, restricted_text, reply_markup=markup)
         return
 
-    # Agar user Active VIP Member hai
+    # Authorized VIP User Access
     if message_id:
         try:
             bot.edit_message_text(get_files_text(), chat_id, message_id, reply_markup=files_menu(), parse_mode="HTML")
@@ -899,7 +899,7 @@ def userid_command(message):
         expiry_info = ""
 
     id_info_text = (
-        "<b>🪪 TELEGRAM ACCOUNT PROFILE DETAILS</b>\n"
+        "<b>🪪 TELEGRAM USER PROFILE METRICS</b>\n"
         "────────────────────────────────────────\n"
         f"● <b>Full Name:</b> {full_name}\n"
         f"● <b>Username:</b> {username}\n"
@@ -907,7 +907,7 @@ def userid_command(message):
         f"● <b>Account Status:</b> {account_tier}"
         f"{expiry_info}\n"
         "────────────────────────────────────────\n"
-        "<i>Tap the User ID code above to copy it instantly.</i>"
+        "<i>Tap the User ID code above to copy it to clipboard.</i>"
     )
 
     send_auto_delete_message(
@@ -928,14 +928,14 @@ def redeem_command(message):
 
     if len(parts) < 2:
         help_text = (
-            "<b>🔑 HOW TO REDEEM YOUR VIP KEY</b>\n"
+            "<b>🔑 LICENSE REDEMPTION GUIDE</b>\n"
             "────────────────────────────────────────\n"
-            "Aapne key code nahi dala hai! Key redeem karne ke liye niche diye gaye format me message bheje:\n\n"
-            "👉 <code>/redeem YOUR_KEY_HERE</code>\n\n"
+            "No license key was provided. To activate your pass, send the command using the syntax below:\n\n"
+            "👉 <code>/redeem KEY_CODE</code>\n\n"
             "<b>EXAMPLE:</b>\n"
             "<code>/redeem QRISHNA-VIP-90D-A1B2C3D4</code>\n"
             "────────────────────────────────────────\n"
-            "<i>Aapko payment approve hone ke baad jo key mili hai, use /redeem ke aage paste karke bhej de.</i>"
+            "<i>Enter the VIP key provided upon payment approval to unlock full access.</i>"
         )
         send_auto_delete_message(
             message.chat.id,
@@ -950,19 +950,19 @@ def redeem_command(message):
 
     if success:
         text = (
-            "<b>🎉 VIP LICENSE ACTIVATED SUCCESSFULLY!</b>\n"
+            "<b>🎉 VIP LICENSE ACTIVATED SUCCESSFULLY</b>\n"
             "────────────────────────────────────────\n"
             f"● <b>Activated Key:</b> <code>{key_code}</code>\n"
             f"● <b>Valid Until:</b> <b>{result}</b>\n\n"
             "────────────────────────────────────────\n"
-            "<i>Aapka VIP access active ho gaya hai! Status dekhne ke liye /access dabae.</i>"
+            "<i>Your VIP Access is now active. Use /access to review your subscription.</i>"
         )
     else:
         text = (
             "<b>❌ REDEMPTION FAILED</b>\n"
             "────────────────────────────────────────\n"
             f"Reason: <b>{result}</b>\n\n"
-            "<i>Kripya sahi key enter kare ya Admin se contact kare.</i>"
+            "<i>Verify your key code or contact support desk for assistance.</i>"
         )
 
     send_auto_delete_message(message.chat.id, text, reply_markup=back_menu(), delay=60)
@@ -1021,11 +1021,6 @@ def resetvip_command(message):
 @bot.message_handler(commands=["broadcast"])
 def broadcast_command(message):
     if message.from_user.id not in OWNER_IDS:
-        return
-
-    text_to_send = message.text.replace("/broadcast", "").strip()
-    if not text_to_send:
-        bot.reply_to(message, "Usage: <code>/broadcast Your Announcement Text</code>", parse_mode="HTML")
         return
 
     with db_lock:
