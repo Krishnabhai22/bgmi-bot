@@ -19,7 +19,7 @@ from flask import Flask
 TOKEN = os.environ.get("BOT_TOKEN")
 
 BOT_NAME = "QRISHNA VIP"
-BOT_VERSION = "10.0 ULTRA ENTERPRISE"
+BOT_VERSION = "10.1 ULTRA ENTERPRISE SECURE"
 
 CHANNEL_LINK = "https://t.me/+GHjJmfql0o02YWZl"
 ADMIN_CONTACT = "https://t.me/qrishna"
@@ -1023,6 +1023,11 @@ def broadcast_command(message):
     if message.from_user.id not in OWNER_IDS:
         return
 
+    text_to_send = message.text.replace("/broadcast", "").strip()
+    if not text_to_send:
+        bot.reply_to(message, "Usage: <code>/broadcast Your Announcement Text</code>", parse_mode="HTML")
+        return
+
     with db_lock:
         connection = get_connection()
         cursor = connection.cursor()
@@ -1082,13 +1087,23 @@ def revoke_key_command(message):
     with db_lock:
         connection = get_connection()
         cursor = connection.cursor()
+        
+        # 1. Key ko used/disabled mark karo
         cursor.execute("UPDATE vip_keys SET is_used = 1 WHERE key_code = ?", (key_code,))
         affected = cursor.rowcount
+
+        # 2. Agar ye key kisi ne redeem ki thi, toh uska VIP access bhi instantly cancel karo
+        cursor.execute("DELETE FROM user_subscriptions WHERE active_key = ?", (key_code,))
+        removed_sub = cursor.rowcount
+
         connection.commit()
         connection.close()
 
     if affected > 0:
-        bot.reply_to(message, f"<b>✅ Key <code>{key_code}</code> Has Been Revoked/Disabled!</b>", parse_mode="HTML")
+        msg = f"<b>✅ Key <code>{key_code}</code> Has Been Revoked!</b>"
+        if removed_sub > 0:
+            msg += "\n<i>Associated user's VIP access has also been revoked instantly.</i>"
+        bot.reply_to(message, msg, parse_mode="HTML")
     else:
         bot.reply_to(message, "Key not found.", parse_mode="HTML")
 
